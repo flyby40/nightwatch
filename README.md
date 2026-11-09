@@ -16,7 +16,7 @@ Open http://localhost:8080. Search a city or choose **Use my location**. Browser
 
 - Weather and city search: [Open-Meteo](https://open-meteo.com/). These are weather model forecasts, not telescope-site measurements.
 - Astronomy: the bundled [SunCalc 1.9.0](https://github.com/mourner/suncalc) library calculates Sun/Moon positions, illumination, and twilight. Its BSD license is included in `dist/SUNCALC-LICENSE.txt`.
-- Seeing and transparency: CMC/ECCC RDPS provider-issued indices through [MSC GeoMet](https://eccc-msc.github.io/open-data/msc-geomet/readme_en/). Each selected hour loads exact-time forecasts for the nearest model grid point, with provider labels, model run, and grid coordinates. These are indices, not arcseconds or percentages. Coverage is North America, at roughly 10 km resolution. Missing forecasts remain **null**. A combined viewing score remains **null**; no proxy estimates are made.
+- Seeing and transparency: CMC/ECCC RDPS provider-issued indices through [MSC GeoMet](https://eccc-msc.github.io/open-data/msc-geomet/readme_en/). Each selected hour loads exact-time forecasts for the nearest model grid point, with provider labels, model run, and grid coordinates. These are indices, not arcseconds or percentages. Coverage is North America, at roughly 10 km resolution. Missing forecasts remain **null**. The separate viewing score is an explicitly labeled Nightwatch inference, not a CMC index.
 - Missing weather fields remain **null**; they are not interpolated or replaced with zeros.
 - Dew-heater guidance recommends a heater when forecast relative humidity is at least 85% or temperature minus dew point is at most 3°C (5.4°F). All three inputs must be available, otherwise the recommendation is **null**. This is a disclosed equipment rule, not a prediction of optical surface temperature or dew formation.
 - External sky charts and observing guides help plan dark-hour sessions. Their links do not assert event visibility at the selected location and time.
@@ -48,3 +48,13 @@ The original Sites version 2 was saved, but publication failed with a Cloudflare
 Source: Environment and Climate Change Canada, MSC GeoMet. See its [data licence](https://eccc-msc.github.io/open-data/licence/readme_en/) and [service usage policy](https://eccc-msc.github.io/open-data/usage-policy/).
 
 Edit the single entrypoint `dist/index.html`. The validation workflow checks its local stylesheet and script references. No root entrypoint copy is maintained.
+
+## Inferred viewing score
+
+The selected-hour hero and hourly chart show a custom 0–100 planning heuristic, marked “inferred*”. It restores the original weights: cloud cover 60%, humidity 15%, wind 10%, and moonlight above the horizon 15%. Solar altitude reduces twilight scores or sets daylight to zero. The in-app footnote and methodology dialog give the complete formula. These weights and quality thresholds are uncalibrated; the score does not incorporate CMC seeing/transparency, light pollution, or smoke. All required inputs must be present, otherwise the score is null. Calculations always use the canonical km/h data regardless of the selected display units. Run the formula tests with `node --test tests/*.test.cjs`.
+
+## Local light pollution and Bortle readings
+
+The chart includes a location-specific light-pollution panel, an external map link centered on the forecast coordinates, and optional known Bortle and sky-brightness readings. These are explicitly user supplied and stored in browser local storage per coordinate pair. Unknown readings remain null. No Bortle/SQM conversion is performed, and these readings do not affect the inferred viewing score.
+
+Automatic light-pollution numbers are not connected. The documented Light Pollution Map API requires a maintainer-issued key; DarkSkySites requires a developer account, a server-side API key, and a backend. GitHub Pages cannot keep such a key secret. No credentials should be committed to this public repository.
