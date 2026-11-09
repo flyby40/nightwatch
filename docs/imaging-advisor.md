@@ -61,6 +61,6 @@ The category selector updates an hourly strip and up to three best windows. A wi
 
 Run `node --test tests/*.test.cjs` and `node scripts/prepare-pages.cjs`. Tests cover excellent/poor/mixed/missing inputs, CMC 0 vs null and exact time/run validation, lunar visibility, relative moon tolerance, smooth penalties, configurable tables, unchanged observing score, and window gaps.
 
-Screenshots in `docs/screenshots/` use deterministic **test forecasts**, labeled in the screenshot. They illustrate behavior rather than claim current sky conditions. Browser checks cover the selected hour, category changes, hourly analysis, range changes/cancellation, original score consistency, unit switching and mobile width overflow.
+Screenshots in `docs/screenshots/` use Chicago, Illinois coordinates (41.8781, −87.6298), America/Chicago timezone, and deterministic **test forecasts**, labeled in the screenshot. They illustrate behavior rather than claim current sky conditions. Browser checks cover the selected hour, category changes, hourly analysis, range changes/cancellation, original score consistency, unit switching and mobile width overflow.
 
 For the optional browser check, serve `dist` at port 4173 (`python3 -m http.server 4173 --directory dist`), then run `node scripts/check-imaging-browser.cjs` with Playwright available. Set `CHROMIUM_PATH` if Chromium is not at `/usr/bin/chromium`. This adds no runtime dependency to the site.
