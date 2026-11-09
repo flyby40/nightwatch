@@ -25,11 +25,11 @@ Units and the last selected location are stored in browser local storage. Weathe
 
 ## Hosting
 
-Deploy the **contents of `dist/`** to any static host using HTTPS. There is no build command.
+The application source in `dist/` runs without compilation. For deployment, run `node scripts/prepare-pages.cjs` and publish `work/pages/`. This copies the app and gives each stylesheet and script a content-hashed URL, preventing a cached old app or stylesheet from loading alongside new HTML.
 
 - **Netlify:** publish directory `dist`.
 - **Vercel:** framework preset Other, no build command, output directory `dist`.
-- **GitHub Pages:** Settings → Pages → Source is **GitHub Actions**. `.github/workflows/static.yml` publishes only `dist/` on pushes to `main` and on manual runs. No build command or Jekyll is used. Live address: https://flyby40.github.io/nightwatch/.
+- **GitHub Pages:** Settings → Pages → Source is **GitHub Actions**. `.github/workflows/static.yml` prepares a versioned copy of `dist/` and publishes `work/pages/` on pushes to `main` and on manual runs. No build command or Jekyll is used. Live address: https://flyby40.github.io/nightwatch/.
 
 `.openai/hosting.json` retains the original ChatGPT Sites project identity. Other static hosts can ignore it. It contains no credentials.
 
@@ -71,3 +71,5 @@ Two overlays are available through ECCC GeoMet WMS, without an API key:
 The map initializes near the viewport, and overlay requests are debounced after panning. Each overlay request retrieves one bounded PNG for the viewport, using EPSG:3857. Up to 12 image blobs are held in memory for animation. Opacity, recenter, refresh, and a map-only mode are provided. Location and map attribution remain visible when an overlay fails. Missing imagery or blank areas are not presented as clear sky; coverage and processing delays apply. The Mercator map cannot display the poles. The rest of the app remains usable if the map library or image service cannot load.
 
 Cloud data source and WMS specification: https://eccc-msc.github.io/open-data/msc-geomet/wms_en/
+
+The deployment packaging step keeps original asset URLs for compatibility and adds content-versioned copies referenced by the published HTML. `asset-manifest.json` records those mappings. Vendor CSS stays in its original directory so relative image paths still work. Local development continues to serve `dist/` directly.
