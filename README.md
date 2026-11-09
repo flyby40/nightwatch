@@ -29,7 +29,7 @@ Deploy the **contents of `dist/`** to any static host using HTTPS. There is no b
 
 - **Netlify:** publish directory `dist`.
 - **Vercel:** framework preset Other, no build command, output directory `dist`.
-- **GitHub Pages:** publish `dist/` through a Pages deployment workflow. GitHub plan and private repository restrictions may apply; enabling Pages can expose the app publicly. No hosting or repository visibility changes were made as part of this migration.
+- **GitHub Pages:** `.github/workflows/pages.yml` publishes `dist/` on pushes to `main` or a manual Actions run. First set **Settings → Pages → Source → GitHub Actions**. This private repository requires a GitHub plan that supports Pages for private repositories. The website is generally public; the repository remains private. Expected address: https://flyby40.github.io/nightwatch/.
 
 `.openai/hosting.json` retains the original ChatGPT Sites project identity. Other static hosts can ignore it. It contains no credentials.
 
