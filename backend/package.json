@@ -1,0 +1,1 @@
+{"name":"nightwatch-sky-api","private":true,"type":"module","scripts":{"test":"node --test ../tests/darksky-backend.test.cjs"}}

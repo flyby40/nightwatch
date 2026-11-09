@@ -1,0 +1,47 @@
+name: Deploy DarkSkySites backend
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: nightwatch-sky-backend
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check backend and tests
+        run: |
+          node --check backend/worker.mjs
+          node --test tests/*.test.cjs
+      - name: Check required deployment secrets
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DSS_KEY: ${{ secrets.DARKSKYSITES_API_KEY }}
+        run: |
+          test -n "$CF_TOKEN" || { echo 'Add the CLOUDFLARE_API_TOKEN repository secret.'; exit 1; }
+          test -n "$CF_ACCOUNT" || { echo 'Add the CLOUDFLARE_ACCOUNT_ID repository secret.'; exit 1; }
+          test -n "$DSS_KEY" || { echo 'Add the DARKSKYSITES_API_KEY repository secret.'; exit 1; }
+      - name: Deploy Worker and upload API secret
+        id: worker
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: backend
+          wranglerVersion: '4'
+          command: deploy
+          secrets: |
+            DARKSKYSITES_API_KEY
+        env:
+          DARKSKYSITES_API_KEY: ${{ secrets.DARKSKYSITES_API_KEY }}
+      - name: Show backend URL
+        env:
+          WORKER_URL: ${{ steps.worker.outputs.deployment-url }}
+        run: |
+          node -e 'const fs=require("fs"); const u=new URL("/api/sky",process.env.WORKER_URL); fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,"Backend endpoint: "+u.href+"\n");'

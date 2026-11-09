@@ -37,6 +37,7 @@ jobs:
           node --check dist/cmc.js
           node --check dist/viewing-score.js
           node --check dist/light-pollution.js
+          node --check backend/worker.mjs
           node --test tests/*.test.cjs
       - name: Setup Pages
         uses: actions/configure-pages@v5

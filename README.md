@@ -21,7 +21,7 @@ Open http://localhost:8080. Search a city or choose **Use my location**. Browser
 - Dew-heater guidance recommends a heater when forecast relative humidity is at least 85% or temperature minus dew point is at most 3°C (5.4°F). All three inputs must be available, otherwise the recommendation is **null**. This is a disclosed equipment rule, not a prediction of optical surface temperature or dew formation.
 - External sky charts and observing guides help plan dark-hour sessions. Their links do not assert event visibility at the selected location and time.
 
-Units and the last selected location are stored in browser local storage. No API key, backend, or server-side secret is required. Google Fonts is used for typography, with local fallback fonts.
+Units and the last selected location are stored in browser local storage. Weather, Sun/Moon, and CMC forecasts need no API key or backend. Optional automatic DarkSkySites readings use the separate Cloudflare backend and its secret; the browser has no API key. Google Fonts is used for typography, with local fallback fonts.
 
 ## Hosting
 
@@ -55,6 +55,6 @@ The selected-hour hero and hourly chart show a custom 0–100 planning heuristic
 
 ## Local light pollution and Bortle readings
 
-The chart includes a location-specific light-pollution panel, an external map link centered on the forecast coordinates, and optional known Bortle and sky-brightness readings. These are explicitly user supplied and stored in browser local storage per coordinate pair. Unknown readings remain null. No Bortle/SQM conversion is performed, and these readings do not affect the inferred viewing score.
+The chart includes a location-specific light-pollution panel, an external map link centered on the forecast coordinates, and optional known Bortle and sky-brightness readings. Manual readings are explicitly user supplied and stored in browser local storage per coordinate pair. The prepared DarkSkySites integration can supply modeled zenith brightness and a provider-derived Bortle class once the backend is deployed. Dataset, quality and fallback metadata are displayed, with attribution. Unknown or unscreened values remain null. No Bortle/SQM conversion is performed by Nightwatch, and these readings do not affect the inferred viewing score.
 
-Automatic light-pollution numbers are not connected. The documented Light Pollution Map API requires a maintainer-issued key; DarkSkySites requires a developer account, a server-side API key, and a backend. GitHub Pages cannot keep such a key secret. No credentials should be committed to this public repository.
+Automatic lookup is ready but disabled until `dist/config.json` has the deployed backend endpoint. See [backend setup](backend/README.md) for the Cloudflare Worker and manual GitHub deployment workflow. `DARKSKYSITES_API_KEY` belongs in encrypted secrets only; GitHub Pages cannot keep a key secret. No credentials should be committed to this public repository.
