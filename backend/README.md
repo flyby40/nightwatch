@@ -2,6 +2,14 @@
 
 This Cloudflare Worker makes fixed-endpoint DarkSkySites zenith lookups for the GitHub Pages frontend. The API key lives in a Worker secret. The public app never receives it.
 
+## Current deployment
+
+The Worker is deployed through the connected Cloudflare account at:
+
+`https://nightwatch-sky-api.flyby40-nightwatch.workers.dev/api/sky`
+
+The frontend endpoint is configured in `dist/config.json`. To activate live data, add an encrypted **Secret** named `DARKSKYSITES_API_KEY` under [Worker settings → Variables and Secrets](https://dash.cloudflare.com/8f872d744d7a55d47b1829ae3fd9c80a/workers/services/view/nightwatch-sky-api/production/settings). Use your activated DarkSkySites developer key, save, and deploy the change. Do not send the key in chat. The backend returns null readings until the secret exists. No additional Cloudflare API token or GitHub secret is required when deploying through the connected Cloudflare tools.
+
 ## Deploy with the prepared GitHub workflow
 
 1. In Cloudflare, open **Workers & Pages** and finish initial setup of a `workers.dev` subdomain if prompted. No purchased domain is needed.
@@ -16,7 +24,7 @@ This Cloudflare Worker makes fixed-endpoint DarkSkySites zenith lookups for the 
 4. Open **Actions → Deploy DarkSkySites backend → Run workflow** on `main`. The workflow creates/updates `nightwatch-sky-api` and adds `DARKSKYSITES_API_KEY` as a Worker secret using Cloudflare's official deployment action. Backend deployment runs manually; normal app pushes do not redeploy it.
 5. The workflow summary shows a public backend endpoint such as `https://nightwatch-sky-api.<your-subdomain>.workers.dev/api/sky`. That URL is safe to share. Set `dist/config.json` to `{"darkSkyApi":"<that endpoint>"}`, then commit it to `main` to redeploy Pages. Keep only the endpoint in this file, never a key.
 
-Until the backend is deployed and its URL is configured, `darkSkyApi` is null and the frontend keeps automatic values null. Existing manual readings and all other forecasts continue to work.
+For an unconfigured installation, set `darkSkyApi` to null; the frontend then keeps automatic values null. Existing manual readings and all other forecasts continue to work.
 
 ## Alternative: Cloudflare's GitHub connection
 
