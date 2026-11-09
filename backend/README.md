@@ -8,7 +8,7 @@ The Worker is deployed through the connected Cloudflare account at:
 
 `https://nightwatch-sky-api.flyby40-nightwatch.workers.dev/api/sky`
 
-The frontend endpoint is configured in `dist/config.json`. To activate live data, add an encrypted **Secret** named `DARKSKYSITES_API_KEY` under [Worker settings → Variables and Secrets](https://dash.cloudflare.com/8f872d744d7a55d47b1829ae3fd9c80a/workers/services/view/nightwatch-sky-api/production/settings). Use your activated DarkSkySites developer key, save, and deploy the change. Do not send the key in chat. The backend returns null readings until the secret exists. No additional Cloudflare API token or GitHub secret is required when deploying through the connected Cloudflare tools.
+The frontend endpoint is configured in `dist/config.json`, and live provider lookups have been verified. For a fresh deployment or key rotation, add an encrypted **Secret** named `DARKSKYSITES_API_KEY` under [Worker settings → Variables and Secrets](https://dash.cloudflare.com/8f872d744d7a55d47b1829ae3fd9c80a/workers/services/view/nightwatch-sky-api/production/settings). Use your activated DarkSkySites developer key, save, and deploy the change. Do not send the key in chat. The backend returns null readings if the secret is missing or the provider request fails. No additional Cloudflare API token or GitHub secret is required when deploying through the connected Cloudflare tools.
 
 ## Deploy with the prepared GitHub workflow
 
@@ -55,3 +55,5 @@ Live end-to-end provider verification requires the deployed Worker and a valid a
 
 Provider documentation: https://www.darkskysites.com/api-access
 Cloudflare deployment documentation: https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/
+
+Runtime notes: upstream requests use Workers-supported `redirect: "manual"`; redirects are rejected without forwarding the API key. Structured error logs record stage and error type only, not credential values or upstream error bodies. Invocation logs redact query strings; traces are sampled at 1%.

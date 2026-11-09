@@ -15,7 +15,7 @@ test('passes exact coordinates and sends credential only to the fixed upstream h
   assert.equal(url.searchParams.get('lng'), '-111.6513');
   assert(!url.href.includes('secret'));
   assert.equal(options.headers['x-api-key'], 'test-only-secret');
-  assert.equal(options.redirect, 'error');
+  assert.equal(options.redirect, 'manual');
   return Response.json(sample());
  } });
  const response = await handler(request(), env());
@@ -78,4 +78,19 @@ test('uses cache for the exact location without repeating upstream requests', as
  assert.equal((await handler(request(), env())).status, 200);
  assert.equal(calls, 1);
  assert.equal(storage.size, 1);
+});
+
+test('uses Workers-supported manual redirects and does not follow credential-bearing redirects', async () => {
+ const { createHandler } = await modulePromise;
+ let calls = 0;
+ const handler = createHandler({ fetcher: async (url, options) => {
+  calls++;
+  assert.equal(options.redirect, 'manual');
+  assert.equal(url.hostname, 'darkskysites.com');
+  return new Response(null, { status: 302, headers: { Location: 'https://other.example/receive' } });
+ } });
+ const response = await handler(request(), env());
+ assert.equal(response.status, 502);
+ assert.equal((await response.json()).sqm, null);
+ assert.equal(calls, 1);
 });

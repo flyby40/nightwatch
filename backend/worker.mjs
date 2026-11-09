@@ -36,7 +36,7 @@ function reply(body, status, origin, extra = {}) {
     ...(origin ? { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Methods': 'GET, OPTIONS', 'Access-Control-Max-Age': '86400' } : {}), ...extra
   } });
 }
-export function createHandler({ fetcher = fetch, cache = null } = {}) {
+export function createHandler({ fetcher = fetch, cache = null, logger = () => {} } = {}) {
   return async function handle(request, env, ctx = {}) {
     const url = new URL(request.url);
     const origin = request.headers.get('Origin');
@@ -50,35 +50,43 @@ export function createHandler({ fetcher = fetch, cache = null } = {}) {
     const lat = Number(latText), lng = Number(lngText);
     if (!numeric(lat, -90, 90) || !numeric(lng, -180, 180)) return reply({ sqm: null, bortleClass: null, error: 'Invalid coordinates.' }, 400, origin);
     if (!env.DARKSKYSITES_API_KEY || !env.SKY_RATE_LIMITER) return reply({ sqm: null, bortleClass: null, error: 'Sky lookup is not configured yet.' }, 503, origin);
+    let stage = 'rate_limit';
     try {
       const limit = await env.SKY_RATE_LIMITER.limit({ key: request.headers.get('CF-Connecting-IP') || 'unknown' });
       if (!limit.success) return reply({ sqm: null, bortleClass: null, error: 'Too many lookups; try again shortly.' }, 429, origin, { 'Retry-After': '60' });
       const cacheURL = new URL('/cache/v1/sky', url.origin);
       cacheURL.search = new URLSearchParams({ lat: String(lat), lng: String(lng) }).toString();
       const cacheKey = new Request(cacheURL);
+      stage = 'cache_read';
       if (cache) {
         const hit = await cache.match(cacheKey);
         if (hit) return reply(await hit.json(), 200, origin);
       }
       const upstream = new URL(SOURCE);
       upstream.search = new URLSearchParams({ lat: String(lat), lng: String(lng) }).toString();
-      const response = await fetcher(upstream, { headers: { 'x-api-key': env.DARKSKYSITES_API_KEY, Accept: 'application/json' }, redirect: 'error', signal: AbortSignal.timeout(15000) });
+      stage = 'provider_fetch';
+      const response = await fetcher(upstream, { headers: { 'x-api-key': env.DARKSKYSITES_API_KEY, Accept: 'application/json' }, redirect: 'manual', signal: AbortSignal.timeout(15000) });
       if (!response.ok) {
+        logger({ event: 'sky_provider_error', status: response.status });
         const status = response.status === 429 ? 429 : response.status === 404 ? 404 : 502;
         const error = response.status === 429 ? 'DarkSkySites quota or rate limit reached.' : response.status === 404 ? 'No usable DarkSkySites dataset at this location.' : 'DarkSkySites is unavailable or its credential needs attention.';
         return reply({ sqm: null, bortleClass: null, error }, status, origin, status === 429 ? { 'Retry-After': '60' } : {});
       }
-      const result = normalize(await response.json(), lat, lng);
+      stage = 'provider_parse';
+      const data = await response.json();
+      stage = 'provider_validate';
+      const result = normalize(data, lat, lng);
       if (cache && result.dataset.id && result.quality.status === 'screened') {
         const cached = new Response(JSON.stringify(result), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=86400' } });
         const put = cache.put(cacheKey, cached).catch(() => {});
         if (ctx.waitUntil) ctx.waitUntil(put); else await put;
       }
       return reply(result, 200, origin);
-    } catch {
+    } catch (error) {
+      logger({ event: 'sky_lookup_failed', stage, errorType: error instanceof Error ? error.name : 'unknown' });
       // Never forward upstream error bodies, tokens, or exception details.
       return reply({ sqm: null, bortleClass: null, error: 'Sky lookup failed or timed out; values remain null.' }, 502, origin);
     }
   };
 }
-export default { fetch(request, env, ctx) { return createHandler({ cache: typeof caches === 'undefined' ? null : caches.default })(request, env, ctx); } };
+export default { fetch(request, env, ctx) { return createHandler({ cache: typeof caches === 'undefined' ? null : caches.default, logger: event => console.error(JSON.stringify(event)) })(request, env, ctx); } };
