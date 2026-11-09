@@ -13,5 +13,7 @@ function inferViewingScore(h){
  const darkness=h.sun<-18?1:h.sun<-12?.65:.25;
  return Math.round(Math.max(0,Math.min(100,raw))*darkness);
 }
-root.NightwatchScore={infer:inferViewingScore,quality:n=>typeof n!=='number'||!Number.isFinite(n)?null:n>=70?'Good':n>=40?'Fair':'Poor'};
+function band(n){return typeof n!=='number'||!Number.isFinite(n)?'unavailable':n>=70?'good':n>=55?'fair':n>=40?'marginal':'poor'}
+const labels={good:'Good',fair:'Fair',marginal:'Marginal',poor:'Poor',unavailable:null};
+root.NightwatchScore={infer:inferViewingScore,band,quality:n=>labels[band(n)]};
 })(typeof window!=='undefined'?window:globalThis);

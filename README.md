@@ -63,7 +63,7 @@ The Cloudflare backend is deployed and configured in `dist/config.json`; live Da
 
 A vendored Leaflet 1.9.4 map centers on the forecast location and marks it with a light-green dot. Search and device geolocation update the marker; panning does not change the forecast location. OpenStreetMap supplies base tiles and visible attribution. Leaflet's license is in `dist/vendor/leaflet/LICENSE`.
 
-Two overlays are available through ECCC GeoMet WMS, without an API key:
+Satellite and weather overlays are available through ECCC GeoMet WMS, without an API key:
 
 - **Satellite infrared observations:** GOES-East or GOES-West (chosen by longitude). Capture time is read from provider metadata, distinct from the chart's future forecast hour. Six advertised timestamps form a recent-image animation; no intermediate frames are generated. The slider selects an individual observed frame. Metadata refreshes every ten minutes while the map is visible, and a manual refresh is available. An image more than two hours old is labeled older imagery. Infrared imagery shows thermal patterns; it is not a cloud-cover percentage.
 - **CMC forecast:** RDPS total cloud cover on a roughly 10 km model grid. This follows the selected chart hour with an explicit TIME and model-run reference. Hours outside the provider range or cadence display a null overlay, without substituting another hour. The legend comes from the provider.
@@ -73,3 +73,13 @@ The map initializes near the viewport, and overlay requests are debounced after 
 Cloud data source and WMS specification: https://eccc-msc.github.io/open-data/msc-geomet/wms_en/
 
 The deployment packaging step keeps original asset URLs for compatibility and adds content-versioned copies referenced by the published HTML. `asset-manifest.json` records those mappings. Vendor CSS stays in its original directory so relative image paths still work. Local development continues to serve `dist/` directly.
+
+## Aurora, wind, temperature and viewing colors
+
+- **Wind gradient:** `RDPS_10km_WindSpeed_10m` with `WINDSPEEDKMH-LINEAR`; the map legend is explicitly km/h.
+- **Temperature gradient:** `RDPS_10km_AirTemp_2m` with `TEMPERATURE-LINEAR`; the map legend is explicitly °C.
+- Both weather layers use the selected chart timestamp and a pinned model reference, with the provider's legend. They do not interpolate unavailable forecast hours. These native map units are labeled independently of the numeric cards' metric/imperial setting.
+- **Aurora:** NOAA SWPC's public `ovation_aurora_latest.json` supplies a short-term OVATION grid, typically 30–90 minutes ahead. Both provider observation and forecast times are shown; no 24/48/72-hour aurora timeline is inferred. A canvas displays the raw 1° cells in the map projection without smoothing the data, omitting missing cells. The nearest grid-cell value at the marker is labeled as a NOAA model value, not a personal visibility probability. Zero is preserved; unavailable cells remain null. The map auto-refreshes every five minutes while visible, has a hemisphere overview button, and links to NOAA's polar maps because Mercator excludes the poles. Darkness, cloud, and horizon conditions still matter for actual viewing.
+- **Viewing colors:** inferred scores below 40 are red/Poor, 40–54 orange/Marginal, 55–69 yellow/Fair, and 70+ green/Good. Null is gray/Unavailable. Every hourly score has a text label as well as color, and the legend documents the thresholds. The numerical inference formula is unchanged; aurora and CMC map layers do not enter the score.
+
+NOAA product documentation: https://www.swpc.noaa.gov/products/aurora-30-minute-forecast

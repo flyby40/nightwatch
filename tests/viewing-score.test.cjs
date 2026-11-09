@@ -37,7 +37,10 @@ test('missing inputs remain null including during daylight', () => {
 test('quality thresholds remain explicit', () => {
  assert.equal(quality(70), 'Good');
  assert.equal(quality(69), 'Fair');
- assert.equal(quality(40), 'Fair');
+ assert.equal(quality(55), 'Fair');
+ assert.equal(quality(54), 'Marginal');
+ assert.equal(quality(40), 'Marginal');
+ assert.equal(context.NightwatchScore.band(null), 'unavailable');
  assert.equal(quality(39), 'Poor');
  assert.equal(quality(null), null);
 });
