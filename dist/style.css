@@ -9,3 +9,39 @@
 .map-unit-legend{display:flex;gap:8px;padding:9px 4px 8px;align-items:stretch}.map-unit-legend[hidden]{display:none!important}#map-unit-colorbar{width:24px;height:220px;border:1px solid #23352d}.map-unit-legend #map-unit-ticks{position:relative;height:220px;min-width:46px;color:#16231a;font-size:9px;line-height:11px}.map-unit-legend #map-unit-ticks span{position:absolute;transform:translateY(-50%);white-space:nowrap;font-size:9px;margin:0}.condensation-flag{font-size:9px;line-height:1.4;padding:5px 3px;border-radius:4px;white-space:nowrap;border:1px solid}.condensation-flag.dew{color:#ffaca7;background:#4a2426;border-color:#a85856}.condensation-flag.frost{color:#aad4ff;background:#203d57;border-color:#527fa9}.condensation-method,.precipitation-method{font-size:11px;line-height:1.8;color:var(--muted);margin:13px 0}.hour-precip{display:flex;flex-direction:column;gap:4px;align-items:center;font-size:9px}.hour .hour-precip strong{font-size:10px;color:#d6e0da}.hour-precip small{font-size:8px;color:var(--muted)}@media(max-width:800px){#map-unit-colorbar{height:160px}.map-unit-legend #map-unit-ticks{height:160px;font-size:8px}.map-unit-legend #map-unit-ticks span{font-size:8px}}
 
 .metrics p.astro-card-times{font-size:10px;line-height:1.8;margin-top:8px;color:var(--muted)}.astro-card-times>span{display:block}
+
+/* Phone layout follows available width, including iPhone safe areas. */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+select{font-family:inherit}button,select,input{touch-action:manipulation}
+@media(max-width:600px){
+header{height:auto;min-height:80px;padding:14px max(16px,env(safe-area-inset-right)) 14px max(16px,env(safe-area-inset-left));gap:12px;flex-wrap:wrap}
+.brand{font-size:23px}.header-right{margin-left:auto;min-width:0}.header-right button{min-width:44px;min-height:44px;padding:10px}
+#units{font-size:16px;max-width:170px;min-height:44px;padding:8px}
+main{padding:0 max(16px,env(safe-area-inset-right)) env(safe-area-inset-bottom) max(16px,env(safe-area-inset-left))}
+.intro{padding-top:28px}h1{font-size:clamp(34px,9vw,43px);letter-spacing:-1.8px}.intro>p{font-size:14px;line-height:1.6}
+.location-bar{flex-wrap:wrap;gap:8px;padding:6px 12px}.location-bar form{flex-basis:calc(100% - 32px)}
+.location-bar input{font-size:16px;min-height:44px}.location-bar form button{min-width:44px;min-height:44px}.location-bar .divider{display:none}
+#locate{width:100%;min-height:44px;border-top:1px solid var(--line);font-size:14px;text-align:left}
+.location-caption{flex-direction:column;gap:4px;font-size:12px}#results{max-height:45vh;overflow:auto}
+.hero{min-height:0;padding:24px;flex-direction:column;gap:20px}.hero-copy{max-width:100%}.hero h2{font-size:30px}.hero p{font-size:14px}
+.hero-pills{max-width:100%;margin-top:18px}.hero-pills span{font-size:11px}.sky-art{right:-170px;pointer-events:none;opacity:.16}
+.score{position:relative;inset:auto;max-width:none;align-self:stretch;text-align:left;padding-top:14px;border-top:1px solid #68876455;z-index:1}.score strong{font-size:40px}.score>span{font-size:10px}
+.metrics{gap:10px;margin:14px 0 24px}.metrics article{padding:18px 12px;min-width:0}.metrics .eyebrow{font-size:10px;letter-spacing:.7px;padding-right:16px;line-height:1.6}.metric-icon{right:10px;top:14px;font-size:17px}
+.metrics strong{font-size:25px;overflow-wrap:anywhere}.additional strong{font-size:20px}.metrics p,.metrics p.astro-card-times{font-size:11px;line-height:1.7}.additional{margin-top:0}
+.panel{padding:20px 16px;min-width:0}h2{font-size:22px;line-height:1.35}.section-heading{gap:16px}.section-heading>div{min-width:0}
+.forecast-controls{width:100%;gap:8px}.controls{flex:1;min-width:0}.controls button{flex:1;min-height:44px;padding:8px;font-size:12px}
+.legend{font-size:12px;gap:12px;margin:20px 0}.legend small{max-width:none;margin-left:0;text-align:left;font-size:11px;width:100%}
+.hour-scroll{max-width:100%;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}.hour{min-width:92px;gap:12px;font-size:12px;padding:14px 8px}.hour strong,.hour-score{font-size:12px}.hour-quality{font-size:11px}.hour-precip,.hour .hour-precip strong{font-size:11px}.hour-precip small{font-size:10px}.condensation-flag{font-size:10px}
+.detail,.cmc-status,.score-footnote,.condensation-method,.precipitation-method{font-size:12px;overflow-wrap:anywhere}
+.map-actions{width:100%}.map-actions button,.satellite-controls button{min-height:44px;font-size:12px;flex:1}
+.map-controls{display:grid;grid-template-columns:minmax(0,1fr);gap:18px}.map-controls label,.satellite-controls label{font-size:12px;min-width:0}.map-controls select{width:100%;font-size:16px;min-height:44px}
+.map-controls input[type=range],.satellite-controls input[type=range]{width:100%;height:32px}.satellite-controls{align-items:stretch}.satellite-controls label{flex:1 1 100%}
+#cloud-map{height:clamp(280px,48svh,390px)}#cloud-map .leaflet-control-zoom a{width:44px;height:44px;line-height:44px}#map-legend{right:6px;top:6px;max-width:110px;padding:6px}
+.map-location,.map-time,.map-status,.map-help,.aurora-legend{font-size:12px;overflow-wrap:anywhere}
+.cloud-map-panel{margin-bottom:24px}.sky-readings{gap:16px}.sky-readings>div{min-width:0}.sky-readings span{font-size:10px;line-height:1.6}.sky-readings strong{font-size:27px}
+.light-panel p,.light-panel small,.dew-panel small,.highlights small{font-size:12px}.light-panel a{overflow-wrap:anywhere}.light-panel summary{font-size:14px;min-height:44px;line-height:1.7}
+#sky-readings-form label{width:100%;font-size:12px}#sky-readings-form input{width:100%;font-size:16px;min-height:44px}#sky-readings-form button{min-height:44px}
+.event{gap:10px}.event>div{min-width:0}.event b{font-size:13px}.event small{font-size:11px}.event time{font-size:12px;flex-shrink:0}.field button{min-height:44px;font-size:13px}
+footer{line-height:1.8;padding-bottom:max(24px,env(safe-area-inset-bottom))}dialog{width:calc(100% - 24px);max-height:85dvh;padding:22px;overflow:auto}#close{min-width:44px;min-height:44px}
+}
+@media(max-width:360px){header{gap:8px}.header-right{width:100%;justify-content:space-between}#units{max-width:none;flex:1}.sky-readings{grid-template-columns:1fr}.metrics article{padding:16px 10px}}
