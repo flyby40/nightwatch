@@ -15,7 +15,7 @@ Open http://localhost:8080. Search a city or choose **Use my location**. Browser
 ## Data and missing values
 
 - Weather and city search: [Open-Meteo](https://open-meteo.com/). These are weather model forecasts, not telescope-site measurements.
-- Astronomy: the bundled [SunCalc 1.9.0](https://github.com/mourner/suncalc) library calculates Sun/Moon positions, illumination, and twilight. Its BSD license is included in `dist/suncalc.js`.
+- Astronomy: the bundled [SunCalc 1.9.0](https://github.com/mourner/suncalc) library calculates Sun/Moon positions, illumination, and twilight. Its BSD license is included in `dist/SUNCALC-LICENSE.txt`.
 - Atmospheric seeing, transparency, and a combined viewing score are **null** because the provider does not supply them. No proxy estimates are made.
 - Missing weather fields remain **null**; they are not interpolated or replaced with zeros.
 - Dew-heater guidance recommends a heater when forecast relative humidity is at least 85% or temperature minus dew point is at most 3°C (5.4°F). All three inputs must be available, otherwise the recommendation is **null**. This is a disclosed equipment rule, not a prediction of optical surface temperature or dew formation.
