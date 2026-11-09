@@ -32,10 +32,11 @@ test('current Nightwatch map, app, CSS, and Leaflet are all versioned together',
  const output = fs.mkdtempSync(path.join(os.tmpdir(), 'nightwatch-release-'));
  t.after(() => fs.rmSync(output, { recursive: true, force: true }));
  const { manifest } = prepare(root, output);
- for (const file of ['app.js', 'style.css', 'cloud-map.js', 'aurora-map.js', 'vendor/leaflet/leaflet.css', 'vendor/leaflet/leaflet.js']) assert(manifest[file], file);
+ for (const file of ['app.js', 'style.css', 'cloud-map.js', 'aurora-map.js', 'weather-utils.js', 'vendor/leaflet/leaflet.css', 'vendor/leaflet/leaflet.js']) assert(manifest[file], file);
  const html = fs.readFileSync(path.join(output, 'index.html'), 'utf8');
  const scripts = Array.from(html.matchAll(/<script src="([^"]+)"/g), m => m[1]);
  assert(scripts.indexOf(manifest['vendor/leaflet/leaflet.js']) < scripts.indexOf(manifest['cloud-map.js']));
+ assert(scripts.indexOf(manifest['weather-utils.js']) < scripts.indexOf(manifest['cloud-map.js']));
  assert(scripts.indexOf(manifest['aurora-map.js']) < scripts.indexOf(manifest['cloud-map.js']));
  assert(scripts.indexOf(manifest['cloud-map.js']) < scripts.indexOf(manifest['app.js']));
 });

@@ -38,6 +38,7 @@ jobs:
           node --check dist/cloud-map.js
           node --check dist/aurora-map.js
           node --check dist/viewing-score.js
+          node --check dist/weather-utils.js
           node --check dist/light-pollution.js
           node --check backend/worker.mjs
           node --test tests/*.test.cjs

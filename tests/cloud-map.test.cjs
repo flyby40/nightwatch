@@ -44,7 +44,7 @@ test('chooses a regional satellite without moving the forecast location', () => 
 });
 
 test('wind and temperature images use explicit native-unit gradient styles', () => {
- for (const [layer,style] of [['RDPS_10km_WindSpeed_10m','WINDSPEEDKMH-LINEAR'],['RDPS_10km_AirTemp_2m','TEMPERATURE-LINEAR']]) {
+ for (const [layer,style] of [['RDPS_10km_WindSpeed_10m','WINDSPEEDKMH-LINEAR'],['RDPS_10km_AirTemp_2m','TEMPERATURE-LINEAR'],['RDPS_10km_Precip-Accum1h','PRECIPMM-LINEAR']]) {
   const url = new URL(map.imageRequest(layer, Date.parse('2026-11-10T01:00:00Z'), '2026-11-09T12:00:00Z', [1,2,3,4], {x:512,y:300}));
   assert.equal(url.searchParams.get('STYLES'), style);
   assert.equal(url.searchParams.get('TIME'), '2026-11-10T01:00:00Z');

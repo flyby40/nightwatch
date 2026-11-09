@@ -4,10 +4,31 @@
 const endpoint = 'https://geo.weather.gc.ca/geomet/';
 const names = { forecast: 'RDPS_10km_TotalCloudCover', east: 'GOES-East_2km_NightIR', west: 'GOES-West_2km_NightIR' };
 const weather = { forecast: { layer: names.forecast, style: 'CLOUD', label: 'cloud cover', legend: 'CMC cloud cover (%)' }, wind: { layer: 'RDPS_10km_WindSpeed_10m', style: 'WINDSPEEDKMH-LINEAR', label: '10m wind speed', legend: 'CMC wind speed (km/h)' }, temperature: { layer: 'RDPS_10km_AirTemp_2m', style: 'TEMPERATURE-LINEAR', label: '2m air temperature', legend: 'CMC temperature (°C)' } };
+weather.precipitation = { layer: 'RDPS_10km_Precip-Accum1h', style: 'PRECIPMM-LINEAR', label: '1-hour precipitation (liquid equivalent)' };
 const isWeather = () => Object.prototype.hasOwnProperty.call(weather, mode);
 const $ = id => document.getElementById(id);
 const metadata = new Map(), images = new Map();
+let scaleControl, legendPending=0;const legendSources=new Map();
 let map, marker, overlay, overlayURL, pending = 0, timer, playTimer, playing = false, context, mode = 'satellite', frameIndex = -1, satelliteMeta, recent = [], observer, visible = false, refreshTimer;
+function unitSystem(){return context?.units==='metric'?'metric':'imperial'}
+function weatherLabel(field){if(field==='wind')return unitSystem()==='imperial'?'wind speed at 33 ft':'wind speed at 10 m';if(field==='temperature')return unitSystem()==='imperial'?'air temperature at 6.6 ft':'air temperature at 2 m';return weather[field].label}
+function legendTitle(field){return field==='forecast'?'CMC cloud cover (%)':field==='wind'?'CMC wind speed ('+(unitSystem()==='imperial'?'mph':'km/h')+')':field==='temperature'?'CMC temperature ('+(unitSystem()==='imperial'?'°F':'°C')+')':'CMC 1-hour precipitation ('+(unitSystem()==='imperial'?'in':'mm')+')'}
+function updateUnitControls(){
+ for(const field of ['wind','temperature','precipitation']){const option=Array.from($('map-layer').options).find(o=>o.value===field);if(option)option.textContent=legendTitle(field).replace('CMC ','CMC · ')}
+ if(map){if(scaleControl)map.removeControl(scaleControl);scaleControl=root.L.control.scale({imperial:unitSystem()==='imperial',metric:unitSystem()==='metric'}).addTo(map)}
+}
+function legendImage(url){if(!legendSources.has(url)){const promise=new Promise((resolve,reject)=>{const image=new Image();image.crossOrigin='anonymous';image.onload=()=>resolve(image);image.onerror=()=>reject(Error('Legend image is unavailable.'));image.src=url});legendSources.set(url,promise);promise.catch(()=>legendSources.delete(url))}return legendSources.get(url)}
+async function renderLegend(field){
+ const ticket=++legendPending,item=weather[field],units=unitSystem(),title=legendTitle(field);
+ $('map-legend-title').textContent=title;
+ const url=base({REQUEST:'GetLegendGraphic',LAYER:item.layer,STYLE:item.style,FORMAT:'image/png',SLD_VERSION:'1.1.0'});
+ $('map-legend-image').style.display=field==='forecast'?'block':'none';$('map-unit-legend').hidden=field==='forecast';
+ if(field==='forecast'){$('map-legend-image').alt=title+' gradient legend';$('map-legend-image').src=url;return}
+ const spec=root.NightwatchWeather.legend(field,units),ticks=$('map-unit-ticks');ticks.replaceChildren();const bar=$('map-unit-colorbar');bar.getContext('2d')?.clearRect(0,0,bar.width,bar.height);
+ for(const tick of spec.ticks){const label=document.createElement('span');label.textContent=tick.edge+new Intl.NumberFormat('en-US',{maximumFractionDigits:field==='precipitation'?3:1}).format(tick.value);label.style.top=tick.position+'%';label.dataset.native=String(tick.native);ticks.append(label)}
+ try{const image=await legendImage(url);if(ticket!==legendPending||mode!==field||unitSystem()!==units)return;if(image.naturalWidth!==spec.width||image.naturalHeight!==spec.height)throw Error('Legend format changed.');const canvas=$('map-unit-colorbar'),ctx=canvas.getContext('2d');if(!ctx)throw Error('Legend display unavailable.');ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(image,spec.crop.x,spec.crop.y,spec.crop.w,spec.crop.h,0,0,canvas.width,canvas.height);canvas.setAttribute('aria-label',title+'; numeric labels alongside');}
+ catch{if(ticket===legendPending){$('map-unit-legend').hidden=true;$('map-legend-title').textContent=title+' · legend unavailable'}}
+}
 function interval(text, defaultTime, reference = null) {
   const [startText, endText, duration] = text.trim().split('/');
   const match = /^PT(?:(\d+)H)?(?:(\d+)M)?$/.exec(duration || '');
@@ -58,6 +79,7 @@ function setTimeControls() {
   $('map-frame').max = String(Math.max(0, recent.length - 1));
   $('map-frame').value = String(Math.max(0, frameIndex));
   $('map-legend').hidden = !isWeather();
+  if (!isWeather()) { legendPending++; $('map-unit-legend').hidden = true; }
   $('aurora-legend').hidden = mode !== 'aurora';
   $('map-aurora-overview').hidden = mode !== 'aurora';
 }
@@ -92,7 +114,7 @@ async function paint(force = false) {
   const token = ++pending;
   setTimeControls();
   if (mode === 'none') { clearOverlay(); $('map-time').textContent = 'Location map · weather overlay off'; message('Location marker follows your selected forecast location.'); return true; }
-  if (!playing) message('Loading ' + (mode === 'aurora' ? 'NOAA aurora forecast…' : isWeather() ? 'CMC ' + weather[mode].label + '…' : 'satellite imagery…'));
+  if (!playing) message('Loading ' + (mode === 'aurora' ? 'NOAA aurora forecast…' : isWeather() ? 'CMC ' + weatherLabel(mode) + '…' : 'satellite imagery…'));
   $('map-time').textContent = 'Loading timestamped imagery…';
   try {
     if (mode === 'aurora') {
@@ -123,11 +145,9 @@ async function paint(force = false) {
     const blob = await imageBlob(url);
     if (token !== pending || requestedMode !== mode || !await place(blob, view, token)) return false;
     if (item) {
-      $('map-time').textContent = 'FORECAST · ' + item.label + ' · Valid ' + time(valid) + ' · CMC model run ' + time(meta.reference);
-      $('map-legend-title').textContent = item.legend;
-      $('map-legend-image').alt = item.legend + ' gradient legend';
-      $('map-legend-image').src = base({ REQUEST: 'GetLegendGraphic', LAYER: item.layer, STYLE: item.style, FORMAT: 'image/png', SLD_VERSION: '1.1.0' });
-      message('CMC RDPS ' + item.label + ' · ~10 km model grid · follows the selected chart hour. Map legend: ' + item.legend + '. Blank areas can mean no coverage; they do not establish a forecast value.');
+      $('map-time').textContent = 'FORECAST · ' + weatherLabel(mode) + ' · Valid ' + time(valid) + ' · CMC model run ' + time(meta.reference);
+      renderLegend(mode);
+      message('CMC RDPS ' + weatherLabel(mode) + ' · '+(unitSystem()==='imperial'?'~6 mi':'~10 km')+' model grid · follows the selected chart hour. '+(mode==='precipitation'?'Accumulation over the hour ending at the selected time; liquid equivalent, not probability. ':'')+'Map legend: '+legendTitle(mode)+'. Blank areas can mean no coverage; they do not establish a forecast value.');
     } else {
       const stale = Date.now() - valid > 7200000;
       $('map-time').textContent = 'OBSERVED IR · Captured ' + time(valid) + (stale ? ' · Older imagery: over 2 hours old' : '') + ' · Frame ' + (frameIndex + 1) + '/' + recent.length;
@@ -152,7 +172,7 @@ function init() {
   map = root.L.map('cloud-map', { scrollWheelZoom: false, minZoom: 2, maxZoom: 12, maxBounds: [[-85.0511, -180], [85.0511, 180]], maxBoundsViscosity: 1 });
   root.L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 12, noWrap: true, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).on('tileerror', () => { $('map-basemap-status').textContent = 'Some base-map tiles could not load; use recenter or refresh.'; }).addTo(map);
   map.attributionControl.addAttribution('<a href="https://weather.gc.ca/astro/index_e.html">ECCC/CMC</a> · <a href="https://www.star.nesdis.noaa.gov/GOES/">NOAA GOES</a> · <a href="https://www.swpc.noaa.gov/products/aurora-30-minute-forecast">NOAA SWPC</a>');
-  root.L.control.scale({ imperial: true, metric: true }).addTo(map);
+  updateUnitControls();
   $('map-layer').onchange = () => { stop(); mode = $('map-layer').value; frameIndex = -1; clearOverlay(); setTimeControls(); paint(); };
   $('map-opacity').oninput = () => { $('map-opacity-value').textContent = $('map-opacity').value + '%'; overlay?.setOpacity(Number($('map-opacity').value) / 100); };
   $('map-center').onclick = () => { map.setView([Math.max(-85, Math.min(85, context.lat)), context.lon], 7); schedule(); };
@@ -179,7 +199,9 @@ function update(next) {
   if (!next || ![next.lat, next.lon].every(Number.isFinite)) return;
   const moved = !context || context.lat !== next.lat || context.lon !== next.lon;
   const changedHour = !context || +context.date !== +next.date;
-  context = { ...next, date: new Date(next.date) };
+  const changedUnits = !context || context.units !== (next.units==='metric'?'metric':'imperial');
+  context = { ...next, date: new Date(next.date), units:next.units==='metric'?'metric':'imperial' };
+  if(changedUnits)updateUnitControls();
   $('map-location').textContent = next.name + ' · ' + next.lat.toFixed(4) + ', ' + next.lon.toFixed(4);
   if (!map) {
     if (!observer && 'IntersectionObserver' in root) { observer = new IntersectionObserver(entries => { visible = entries[0].isIntersecting; if (visible) init(); else stop(); }, { rootMargin: '200px' }); observer.observe($('cloud-map-panel')); }
@@ -187,7 +209,7 @@ function update(next) {
     return;
   }
   if (moved) { stop(); pending++; frameIndex = -1; clearOverlay(); locate(); schedule(); }
-  else if (changedHour && isWeather()) { stop(); pending++; schedule(); }
+  else if ((changedHour || changedUnits) && isWeather()) { stop(); pending++; schedule(); }
 }
 root.NightwatchMap = { update, interval, exactTime, recentTimes, satelliteFor, imageRequest };
 })(typeof window !== 'undefined' ? window : globalThis);
