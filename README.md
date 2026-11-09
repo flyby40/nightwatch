@@ -29,7 +29,7 @@ Deploy the **contents of `dist/`** to any static host using HTTPS. There is no b
 
 - **Netlify:** publish directory `dist`.
 - **Vercel:** framework preset Other, no build command, output directory `dist`.
-- **GitHub Pages:** `.github/workflows/pages.yml` publishes `dist/` on pushes to `main` or a manual Actions run. First set **Settings → Pages → Source → GitHub Actions**. This private repository requires a GitHub plan that supports Pages for private repositories. The website is generally public; the repository remains private. Expected address: https://flyby40.github.io/nightwatch/.
+- **GitHub Pages:** configured to deploy `main` from the repository root. Root `index.html` loads the canonical files in `dist/`, and `.nojekyll` prevents README/Jekyll rendering. No separate Pages deployment workflow is used. Live address: https://flyby40.github.io/nightwatch/.
 
 `.openai/hosting.json` retains the original ChatGPT Sites project identity. Other static hosts can ignore it. It contains no credentials.
 
@@ -46,3 +46,5 @@ The original Sites version 2 was saved, but publication failed with a Cloudflare
 `dist/cmc.js` discovers each layer’s valid times and latest model run using filtered WMS GetCapabilities, then requests GetFeatureInfo for the selected hour. Layer names: `RDPS_10km_SeeingIndex`, `RDPS_10km_SkyTransparencyIndex`. Both forecast time and reference run must match the response. No time interpolation or fallback to a different run is performed. Requests are debounced, limited to two concurrently, and cached in memory per location/time/model run. Capabilities refresh after 30 minutes. Loading, out-of-domain/no-data, timeout, and invalid responses display null with an explanation. Selecting a new location resets the displayed results; asynchronous older results cannot overwrite the current selected hour. Browser CORS is supported by GeoMet; no API key or backend is used. CMC data is a numerical model forecast, not an observation at the telescope.
 
 Source: Environment and Climate Change Canada, MSC GeoMet. See its [data licence](https://eccc-msc.github.io/open-data/licence/readme_en/) and [service usage policy](https://eccc-msc.github.io/open-data/usage-policy/).
+
+When changing `dist/index.html`, update the root `index.html` copy with stylesheet and script paths prefixed by `dist/`. The validation workflow checks these entrypoints remain synchronized. Other static hosts may still publish `dist/` directly.

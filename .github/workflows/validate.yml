@@ -1,0 +1,26 @@
+name: Validate Nightwatch
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check JavaScript
+        run: |
+          node --check dist/app.js
+          node --check dist/cmc.js
+      - name: Check Pages entrypoint
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          expected = Path('dist/index.html').read_text().replace('href="style.css"', 'href="dist/style.css"')
+          for name in ['suncalc.js', 'cmc.js', 'app.js']:
+              expected = expected.replace('src="' + name + '"', 'src="dist/' + name + '"')
+          assert Path('index.html').read_text() == expected, 'Root entrypoint differs from dist/index.html'
+          assert Path('.nojekyll').exists()
+          PY
