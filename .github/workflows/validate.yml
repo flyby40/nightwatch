@@ -14,13 +14,16 @@ jobs:
         run: |
           node --check dist/app.js
           node --check dist/cmc.js
-      - name: Check Pages entrypoint
+      - name: Check static entrypoint and assets
         run: |
-          python3 - <<'PY'
+          python3 - <<'PYTHON'
+          from html.parser import HTMLParser
           from pathlib import Path
-          expected = Path('dist/index.html').read_text().replace('href="style.css"', 'href="dist/style.css"')
-          for name in ['suncalc.js', 'cmc.js', 'app.js']:
-              expected = expected.replace('src="' + name + '"', 'src="dist/' + name + '"')
-          assert Path('index.html').read_text() == expected, 'Root entrypoint differs from dist/index.html'
-          assert Path('.nojekyll').exists()
-          PY
+          class Assets(HTMLParser):
+              def handle_starttag(self, tag, attrs):
+                  attrs = dict(attrs)
+                  ref = attrs.get('src') if tag == 'script' else attrs.get('href') if tag == 'link' and attrs.get('rel') == 'stylesheet' else None
+                  if ref and not ref.startswith(('https://', 'http://', '//')):
+                      assert (Path('dist') / ref).is_file(), f'Missing asset: {ref}'
+          Assets().feed(Path('dist/index.html').read_text())
+          PYTHON

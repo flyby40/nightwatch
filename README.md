@@ -29,7 +29,7 @@ Deploy the **contents of `dist/`** to any static host using HTTPS. There is no b
 
 - **Netlify:** publish directory `dist`.
 - **Vercel:** framework preset Other, no build command, output directory `dist`.
-- **GitHub Pages:** configured to deploy `main` from the repository root. Root `index.html` loads the canonical files in `dist/`, and `.nojekyll` prevents README/Jekyll rendering. No separate Pages deployment workflow is used. Live address: https://flyby40.github.io/nightwatch/.
+- **GitHub Pages:** Settings → Pages → Source is **GitHub Actions**. `.github/workflows/static.yml` publishes only `dist/` on pushes to `main` and on manual runs. No build command or Jekyll is used. Live address: https://flyby40.github.io/nightwatch/.
 
 `.openai/hosting.json` retains the original ChatGPT Sites project identity. Other static hosts can ignore it. It contains no credentials.
 
@@ -39,7 +39,7 @@ The original two implementation commits are preserved. The latest app includes t
 
 Previously checked: JavaScript syntax, live weather and geocoding endpoints, rendering all three forecast horizons, unit conversions, zero/null handling, dew-rule branches, and dark-hour filtering. Visual browser QA was unavailable in the original environment.
 
-The original Sites version 2 was saved, but publication failed with a Cloudflare 504 and a subsequent publish error. This GitHub transfer does not itself enable a new deployment.
+The original Sites version 2 was saved, but publication failed with a Cloudflare 504 and a subsequent publish error. GitHub Pages now provides hosting through the static deployment workflow.
 
 ## CMC integration
 
@@ -47,4 +47,4 @@ The original Sites version 2 was saved, but publication failed with a Cloudflare
 
 Source: Environment and Climate Change Canada, MSC GeoMet. See its [data licence](https://eccc-msc.github.io/open-data/licence/readme_en/) and [service usage policy](https://eccc-msc.github.io/open-data/usage-policy/).
 
-When changing `dist/index.html`, update the root `index.html` copy with stylesheet and script paths prefixed by `dist/`. The validation workflow checks these entrypoints remain synchronized. Other static hosts may still publish `dist/` directly.
+Edit the single entrypoint `dist/index.html`. The validation workflow checks its local stylesheet and script references. No root entrypoint copy is maintained.
