@@ -35,6 +35,7 @@ jobs:
         run: |
           node --check dist/app.js
           node --check dist/cmc.js
+          node --check dist/cloud-map.js
           node --check dist/viewing-score.js
           node --check dist/light-pollution.js
           node --check backend/worker.mjs

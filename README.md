@@ -58,3 +58,16 @@ The selected-hour hero and hourly chart show a custom 0–100 planning heuristic
 The chart includes a location-specific light-pollution panel, an external map link centered on the forecast coordinates, and optional known Bortle and sky-brightness readings. Manual readings are explicitly user supplied and stored in browser local storage per coordinate pair. The prepared DarkSkySites integration can supply modeled zenith brightness and a provider-derived Bortle class once the backend is deployed. Dataset, quality and fallback metadata are displayed, with attribution. Unknown or unscreened values remain null. No Bortle/SQM conversion is performed by Nightwatch, and these readings do not affect the inferred viewing score.
 
 The Cloudflare backend is deployed and configured in `dist/config.json`; live DarkSkySites lookups were verified after the encrypted API secret was added. See [backend setup](backend/README.md) for the Cloudflare Worker and manual GitHub deployment workflow. `DARKSKYSITES_API_KEY` belongs in encrypted secrets only; GitHub Pages cannot keep a key secret. No credentials should be committed to this public repository.
+
+## Location and cloud map
+
+A vendored Leaflet 1.9.4 map centers on the forecast location and marks it with a light-green dot. Search and device geolocation update the marker; panning does not change the forecast location. OpenStreetMap supplies base tiles and visible attribution. Leaflet's license is in `dist/vendor/leaflet/LICENSE`.
+
+Two overlays are available through ECCC GeoMet WMS, without an API key:
+
+- **Satellite infrared observations:** GOES-East or GOES-West (chosen by longitude). Capture time is read from provider metadata, distinct from the chart's future forecast hour. Six advertised timestamps form a recent-image animation; no intermediate frames are generated. The slider selects an individual observed frame. Metadata refreshes every ten minutes while the map is visible, and a manual refresh is available. An image more than two hours old is labeled older imagery. Infrared imagery shows thermal patterns; it is not a cloud-cover percentage.
+- **CMC forecast:** RDPS total cloud cover on a roughly 10 km model grid. This follows the selected chart hour with an explicit TIME and model-run reference. Hours outside the provider range or cadence display a null overlay, without substituting another hour. The legend comes from the provider.
+
+The map initializes near the viewport, and overlay requests are debounced after panning. Each overlay request retrieves one bounded PNG for the viewport, using EPSG:3857. Up to 12 image blobs are held in memory for animation. Opacity, recenter, refresh, and a map-only mode are provided. Location and map attribution remain visible when an overlay fails. Missing imagery or blank areas are not presented as clear sky; coverage and processing delays apply. The Mercator map cannot display the poles. The rest of the app remains usable if the map library or image service cannot load.
+
+Cloud data source and WMS specification: https://eccc-msc.github.io/open-data/msc-geomet/wms_en/
