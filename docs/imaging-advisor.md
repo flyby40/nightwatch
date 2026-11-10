@@ -84,6 +84,14 @@ These curves and weights are the proposed first-pass matrix, **not a universal a
 
 Narrowband's relative tolerance to artificial light is a general property; no light-pollution correction is computed here. Equipment, tracking, planet/target altitude and visibility (except Moon), atmospheric dispersion, filters, local smoke/aerosols and optical-surface temperature are not included. A daytime planetary rating describes atmospheric quality, not safe target visibility or solar observing instructions.
 
+## Category-specific explanations
+
+Each card shows one concise explanation of its dominant limitation, rather than a shared list of every adverse input. Lunar horizon eligibility takes priority, even when atmospheric data is incomplete. CMC zero is explicitly explained as modeled cloud. Missing-data explanations retain the incomplete confidence notice.
+
+For complete inputs, rank the score recoverable by improving each driver independently: seeing/transparency utilities to 100, or one environmental modifier to 1, holding the others fixed. This is an explanatory comparison, **not a change to any score or weight**. Ties use stable seeing/transparency/modifier order. When the largest recoverable loss is <5 points, atmospheric quality is ≥90 and every modifier is ≥.95, show a category-specific favorable summary instead of declaring a material limitation. Favorable wording is never used for modeled cloud.
+
+The wording describes stars for wide-field, faint-object contrast for broadband, filtered emission signal for narrowband, and fine planetary/lunar detail for high-resolution work. Cloud, wind, dew, Moon background, twilight and low lunar altitude can take precedence when their recoverable score loss is greater. General planet visibility limitations remain visible in the panel's introductory note.
+
 ## Hourly analysis and request behavior
 
 The selected hour uses existing lazy CMC requests. “Analyze hourly forecast” explicitly loads the selected 24/48/72 timestamps, two provider fields per hour, through the existing two-request concurrency limiter and exact-time/run cache. It does not request new weather sources or modify the observing score. Progress distinguishes hours checked from hours with complete inputs. Analysis can be stopped; changing location or horizon stops scheduling further hours. An in-flight request may finish and populate only its original hour/location. Selected-hour and analysis requests share a per-hour promise. Provider failures remain null.

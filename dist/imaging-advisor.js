@@ -26,34 +26,47 @@ const valid=v=>typeof v==='number'&&Number.isFinite(v);
 function curve(points,x){if(x<=points[0][0])return points[0][1];for(let i=1;i<points.length;i++){const [a,b]=points[i-1],[c,d]=points[i];if(x<=c)return b+(d-b)*(x-a)/(c-a)}return points.at(-1)[1]}
 function band(score,c=config){return !valid(score)?'unavailable':score>=c.bands.good?'good':score>=c.bands.fair?'fair':score>=c.bands.marginal?'marginal':'poor'}
 const labels={good:'Good',fair:'Fair',marginal:'Marginal',poor:'Poor',unavailable:'Insufficient data'};
+// Explain the largest recoverable score loss, without changing any scoring rules.
+function explain(id,h,spec,components,atmospheric,modifiers){
+ if(spec.moonRequired&&h.moonAlt<=0)return {dominantLimitation:'visibility',explanation:'Moon is below the horizon; lunar imaging is unavailable regardless of atmospheric quality.'};
+ if(h.seeing===0||h.transparency===0)return {dominantLimitation:'cmcCloud',explanation:'CMC predicts a cloudy sky, limiting '+({wide:'wide-field star images',broadband:'faint broadband exposures',narrowband:'narrowband nebula signal',planetary:'planetary detail',lunar:'lunar detail'}[id])+'.'};
+ const product=Object.values(modifiers).reduce((a,b)=>a*b,1);
+ const losses=[['seeing',(100-components.seeing)*spec.weights.seeing*product],['transparency',(100-components.transparency)*spec.weights.transparency*product]];
+ for(const [key,factor] of Object.entries(modifiers)){
+  const others=Object.entries(modifiers).filter(([name])=>name!==key).reduce((n,[,v])=>n*v,1);
+  losses.push([key,atmospheric*(1-factor)*others]);
+ }
+ const [dominant,loss]=losses.sort((a,b)=>b[1]-a[1])[0];
+ // Small departures from ideal do not warrant declaring a dominant limitation.
+ if(loss<5&&atmospheric>=90&&Object.values(modifiers).every(v=>v>=.95)){const favorable={wide:'Clear skies favor wide-field star fields and clusters.',broadband:'Clear, transparent skies favor faint broadband structure.',narrowband:'Transparent skies favor emission-nebula signal through narrowband filters.',planetary:'Steady seeing favors fine planetary detail; confirm planet visibility.',lunar:'Steady seeing favors detail on the visible Moon.'};return {dominantLimitation:null,explanation:favorable[id]};}
+ const seeing=h.seeing===1?'Very poor':h.seeing===2?'Poor':h.seeing===3?'Average':'Less-than-excellent';
+ const transparency=h.transparency<=2?'Poor':h.transparency===3?'Average':'Less-than-excellent';
+ const atmosphericText={
+  wide:{seeing:'Poor atmospheric stability may enlarge stars, but wide-field imaging remains possible.',transparency:transparency+' transparency dims faint stars'+(h.seeing<=2?'; poor stability may also enlarge them': '')+', but wide-field imaging remains possible.'},
+  broadband:{seeing:seeing+' seeing blurs small galaxy and nebula structure.',transparency:transparency+' transparency significantly reduces faint-object contrast.'},
+  narrowband:{seeing:seeing+' seeing softens emission-nebula detail, especially at smaller image scales.',transparency:'Narrowband filtering may help with some sky-background limitations, but '+transparency.toLowerCase()+' transparency still reduces signal.'},
+  planetary:{seeing:seeing+' seeing '+(h.seeing<=2?'severely limits':'limits')+' fine planetary detail.',transparency:transparency+' transparency reduces planetary contrast, even when seeing is steady.'},
+  lunar:{seeing:seeing+' seeing '+(h.seeing<=2?'severely limits':'limits')+' fine lunar detail.',transparency:transparency+' transparency reduces lunar contrast despite the Moon being visible.'}
+ };
+ const subjects={wide:'wide-field star images',broadband:'faint broadband exposures',narrowband:'narrowband nebula exposures',planetary:'fine planetary detail',lunar:'fine lunar detail'},subject=subjects[id];
+ const environmental={cloud:'Cloud cover is the main limitation for '+subject+'.',cmcCloud:'CMC predicts a cloudy sky, limiting '+subject+'.',wind:'Wind is the main risk to '+subject+(spec.detail?' through image shake.':' through tracking errors and enlarged stars.'),dew:'Dew/frost risk is the main equipment limitation for '+subject+'; use dew protection and monitor optics.',night:'Twilight or daylight is the main sky-background limitation for '+subject+'.',moon:'Moonlight is the main sky-background limitation for '+subject+(id==='narrowband'?'; narrowband filters help, but do not eliminate it.':'.'),moonAltitude:'Low Moon altitude is the main limitation to fine lunar detail.'};
+ return {dominantLimitation:dominant,explanation:atmosphericText[id][dominant]||environmental[dominant]};
+}
 function analyze(h={},c=config){
  h=h||{};
  const ranges={seeing:[0,5],transparency:[0,5],cloud:[0,100],wind:[0,Infinity],humidity:[0,100],temp:[-Infinity,Infinity],dew:[-Infinity,Infinity],moonIllum:[0,1],moonAlt:[-90,90],sun:[-90,90]};
  const missing=Object.keys(ranges).filter(k=>!valid(h[k])||h[k]<ranges[k][0]||h[k]>ranges[k][1]||(['seeing','transparency'].includes(k)&&!Number.isInteger(h[k])));
  return Object.entries(c.categories).map(([id,spec])=>{
   const base={id,label:spec.label,missing:[...missing],confidence:missing.length?'insufficient':'complete'};
-  if(missing.length)return {...base,score:null,band:'unavailable',rating:labels.unavailable,explanation:'Missing or invalid '+missing.join(', ')+'. No suitability rating is inferred.'};
+  if(missing.length)return {...base,score:null,band:'unavailable',rating:labels.unavailable,dominantLimitation:spec.moonRequired&&valid(h.moonAlt)&&h.moonAlt<=0?'visibility':'missing',explanation:(spec.moonRequired&&valid(h.moonAlt)&&h.moonAlt<=0?'Moon is below the horizon; lunar imaging is unavailable regardless of atmospheric quality. ':'')+'Missing or invalid '+missing.join(', ')+'. Atmospheric confidence is incomplete; no suitability rating is inferred.'};
   const components={seeing:spec.seeing[h.seeing],transparency:spec.transparency[h.transparency]};
   const atmospheric=components.seeing*spec.weights.seeing+components.transparency*spec.weights.transparency;
   const modifiers={cloud:curve(c.curves.cloud,h.cloud),wind:curve(c.curves.wind,h.wind),dew:Math.min(curve(c.curves.humidity,h.humidity),curve(c.curves.spread,h.temp-h.dew)),cmcCloud:c.cmcCloudFactor[h.seeing]*c.cmcCloudFactor[h.transparency],night:spec.detail?1:curve(c.curves.night,h.sun),moon:spec.moonFloor===undefined||h.moonAlt<=0?1:1-(1-spec.moonFloor)*h.moonIllum,moonAltitude:spec.moonRequired&&h.moonAlt>0&&h.moonAlt<c.lowMoonAltitude?c.lowMoonFactor:1};
   let raw=atmospheric*Object.values(modifiers).reduce((a,b)=>a*b,1);
-  const reasons=[];
-  if(spec.moonRequired&&h.moonAlt<=0){raw=0;reasons.push('Moon is below the horizon; lunar imaging is unavailable.');}
-  if(h.cloud>=30)reasons.push('Cloud cover limits usable exposures.');
-  if(h.seeing===0||h.transparency===0)reasons.push('CMC indicates a cloudy sky.');
-  if(h.seeing>0&&h.seeing<=2)reasons.push(spec.detail?(h.seeing===1?'Very poor seeing limits fine detail.':'Poor seeing limits fine detail.'):'Poor seeing reduces sharpness; wider image scales are more tolerant.');
-  if(h.transparency>0&&h.transparency<=2)reasons.push(spec.detail?'Poor transparency reduces contrast; seeing remains the main detail limitation.':'Poor transparency reduces faint-object contrast.');
-  if(h.seeing===3&&spec.detail)reasons.push('Average seeing limits fine detail; seeing 4–5 is preferred.');
-  if(h.transparency===3&&id==='broadband')reasons.push('Average transparency limits broadband contrast; transparency 4–5 is preferred.');
-  if(h.wind>=15)reasons.push('Wind can disturb tracking and sharpness.');
-  if(h.humidity>=85||h.temp-h.dew<=3)reasons.push('Humidity or a small dew-point spread raises dew/frost risk; use dew protection.');
-  if(!spec.detail&&h.sun>-18)reasons.push('Twilight or daylight reduces deep-sky contrast.');
-  if(!spec.detail&&h.moonAlt>0&&h.moonIllum>=.4)reasons.push(id==='narrowband'?'Narrowband is more tolerant of moonlight; clouds and haze still matter.':'Moonlight reduces faint-object contrast.');
-  if(!reasons.length)reasons.push(spec.detail?'Good or excellent seeing and low cloud favor fine detail.':h.sun<=-18&&(h.moonAlt<=0||h.moonIllum<.2)?'Excellent darkness and clear air favor deep-sky imaging.':'Clear air favors imaging; check target position.');
-  if(id==='planetary')reasons.push('Planet visibility and altitude are not evaluated.');
-  if(modifiers.moonAltitude<1)reasons.push('Low Moon altitude may soften detail.');
+  if(spec.moonRequired&&h.moonAlt<=0)raw=0;
+  const reason=explain(id,h,spec,components,atmospheric,modifiers);
   const score=Math.round(Math.max(0,Math.min(100,raw))),quality=band(score,c);
-  return {...base,score,band:quality,rating:labels[quality],explanation:reasons.join(' '),components,atmospheric,modifiers};
+  return {...base,score,band:quality,rating:labels[quality],...reason,components,atmospheric,modifiers};
  });
 }
 // Windows contain consecutive forecast samples, not guaranteed continuous conditions.

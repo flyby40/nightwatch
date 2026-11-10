@@ -79,3 +79,27 @@ test('outside preferred ranges remains graded; modifiers never improve atmospher
   assert.equal(cat[key].length,6);for(let i=1;i<6;i++)assert(cat[key][i]>=cat[key][i-1]);
  }
 });
+
+test('explanations identify category-specific dominant limitations for seeing 1 / transparency 2',()=>{
+ const out=results({seeing:1,transparency:2,moonAlt:-20});
+ assert.equal(new Set(Object.values(out).map(r=>r.explanation)).size,5);
+ assert.match(out.wide.explanation,/wide-field imaging remains possible/);
+ assert.match(out.broadband.explanation,/Poor transparency significantly reduces faint-object contrast/);
+ assert.match(out.narrowband.explanation,/Narrowband filtering.*poor transparency still reduces signal/);
+ assert.equal(out.planetary.dominantLimitation,'seeing');
+ assert.match(out.planetary.explanation,/Very poor seeing severely limits fine planetary detail/);
+ assert.equal(out.lunar.dominantLimitation,'visibility');
+ assert.match(out.lunar.explanation,/unavailable regardless of atmospheric quality/);
+});
+test('environmental explanations reflect the greatest recoverable score loss',()=>{
+ for(const [over,driver,text]of [
+  [{cloud:90},'cloud',/Cloud cover/],
+  [{wind:55},'wind',/Wind/],
+  [{humidity:100,dew:15},'dew',/Dew\/frost/],
+  [{sun:10},'night',/Twilight or daylight/],
+  [{moonIllum:1},'moon',/Moonlight/]
+ ]){const r=results(over).broadband;assert.equal(r.dominantLimitation,driver);assert.match(r.explanation,text);}
+ assert.equal(results({seeing:0,transparency:0,cloud:100}).planetary.dominantLimitation,'cmcCloud');
+ assert.doesNotMatch(results({seeing:0,transparency:0,cloud:100}).planetary.explanation,/favor/);
+ const missing=results({seeing:null,moonAlt:-20}).lunar;assert.equal(missing.score,null);assert.match(missing.explanation,/unavailable regardless.*confidence is incomplete/);
+});
