@@ -1,4 +1,4 @@
-# Imaging Conditions Advisor v1
+# Imaging Conditions Advisor · matrix model
 
 This advisor is an **inferred, uncalibrated planning heuristic**, not a provider prediction or a replacement for Nightwatch's existing observing score. `dist/viewing-score.js` and its formula are unchanged. No new weather API is used. Pure calculations and editable tables live in `dist/imaging-advisor.js`; DOM rendering lives in `dist/imaging-ui.js`; existing `app.js` owns forecast data and selection.
 
@@ -11,45 +11,78 @@ Verified against the existing parser, live GeoMet GetFeatureInfo, and ECCC docum
 
 Both CMC RDPS indices are integers **0–5, higher is better**: 0 = cloudy/zero, 1 = very bad, 2 = poor, 3 = average seeing / medium transparency, 4 = good, 5 = excellent. They are not arcseconds, percentages, or a 1–10 scale. Zero is valid and adverse, not nodata. A live seeing response of 2 was labeled “Poor seeing.” Existing `CMC.parsePoint` requires one feature, a numeric integer in range, and matching valid time and model run; missing/out-of-domain/invalid/error results remain null. The advisor reads the validated `hour.cmc.*.data.value`, not the unused null placeholders `hour.seeing` / `hour.transparency`.
 
-Open-Meteo inputs retain their existing canonical units: cloud and RH percent, wind km/h, temperature and dew point °C. SunCalc supplies Sun/Moon altitudes in degrees and Moon illumination as a 0–1 fraction. All ten inputs (seeing, transparency, clouds, wind, RH, temperature, dew point, Sun altitude, Moon altitude, illumination) must be finite and within accepted ranges. Missing/invalid values return `score: null`, `Insufficient data`, and an explicit list. No missing input is replaced by favorable weather. “Complete” describes input coverage, not calibrated forecast confidence. This conservative policy also requires transparency for planetary/lunar ratings even though its weight is small.
+Open-Meteo inputs retain their existing canonical units: cloud and RH percent, wind km/h, temperature and dew point °C. SunCalc supplies Sun/Moon altitudes in degrees and Moon illumination as a 0–1 fraction. All ten inputs (seeing, transparency, clouds, wind, RH, temperature, dew point, Sun altitude, Moon altitude, illumination) must be finite and within accepted ranges. Missing/invalid values return `score: null`, `Insufficient data`, and an explicit list. No missing input is replaced by favorable weather. “Complete” describes input coverage, not calibrated forecast confidence. Incomplete coverage explicitly shows insufficient confidence. This conservative policy also requires transparency for planetary/lunar ratings even though its weight is small.
 
-## Suitability tables
+## Matrix foundation and atmospheric weights
 
-Index utility for CMC 0 through 5 is `[0, 15, 35, 60, 82, 100]`. Scores use the weighted mean of these components:
+The original preferred ranges are retained exactly. They guide **category-specific curves**, not binary eligibility checks. The percentages below apply to atmospheric quality only; clouds, wind, Moon and dew risk are handled separately.
 
-| Category | Seeing | Transparency | Clouds | Wind | Moon | RH | Dew spread | Darkness |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Wide-field stars/clusters | 5 | 20 | 25 | 15 | 10 | 5 | 5 | 15 |
-| Broadband galaxies/reflection nebulae | 5 | 30 | 25 | 10 | 10 | 5 | 5 | 10 |
-| Narrowband emission nebulae | 5 | 25 | 30 | 15 | 5 | 5 | 5 | 10 |
-| High-resolution planetary | 55 | 5 | 15 | 15 | 0 | 5 | 5 | 0 |
-| Lunar | 50 | 5 | 20 | 15 | 0 | 5 | 5 | 0 |
+| Category | Preferred seeing | Preferred transparency | Seeing weight | Transparency weight |
+|---|---|---|---:|---:|
+| Wide-field stars & clusters | 2–5 | 2–5 | 25% | 75% |
+| Broadband galaxies & reflection nebulae | 2–5, ideally 3+ | 4–5 | 20% | 80% |
+| Narrowband emission nebulae | 2–5 | 3–5 | 20% | 80% |
+| High-resolution planetary | 4–5 | 2–5 | 85% | 15% |
+| High-resolution lunar | 4–5 | 2–5 | 85% | 15% |
 
-Utilities interpolate linearly between the following `(input, utility)` points, clamping outside the endpoints. These interpolations apply to the heuristic, **not to provider times, grid cells, or missing data**.
+The model starts with `atmospheric = seeingUtility × seeingWeight + transparencyUtility × transparencyWeight`. There is **no arbitrary 100-point starting score**, no weather bonus, and no separate post-hoc detail/transparency penalty duplicating the curves. All utilities, ranges and weights are editable in `NightwatchImaging.config.categories` in `dist/imaging-advisor.js`.
 
-| Component | Points |
+### Separate seeing and transparency curves
+
+Each array contains utility at CMC indices **0, 1, 2, 3, 4, 5**, in that order. Utilities range 0–100; they are heuristic suitability values, not probabilities or observed success rates. Valid CMC indices are discrete integers; fractional indices are rejected, not interpolated.
+
+| Category | Seeing utility [0…5] | Transparency utility [0…5] |
+|---|---|---|
+| Wide-field | [0, 35, 70, 85, 95, 100] | [0, 20, 65, 82, 95, 100] |
+| Broadband | [0, 25, 60, 85, 95, 100] | [0, 5, 20, 55, 85, 100] |
+| Narrowband | [0, 35, 70, 85, 95, 100] | [0, 10, 40, 75, 92, 100] |
+| Planetary | [0, 5, 20, 55, 85, 100] | [0, 40, 70, 85, 95, 100] |
+| Lunar | [0, 5, 20, 55, 85, 100] | [0, 40, 70, 85, 95, 100] |
+
+This retains useful but reduced suitability outside preferred ranges. For example, seeing 2 does not prohibit planetary photography, but its detail utility is only 20. Seeing 3 is not automatically rated Good for high-resolution work. Seeing 5 / transparency 1 can still suit planetary detail more than faint galaxies, because atmospheric stability carries 85% of the planetary atmosphere score. Preferred ranges do not guarantee Good ratings after adverse weather/geometry is included.
+
+### Separate environmental modifiers
+
+`raw = atmospheric × cloud × wind × dew × cmcCloud × night × moon × moonAltitude`. Each factor lies in [0,1], so it can only reduce atmospheric suitability. Parameters below are editable in `config.curves` and the category-specific Moon settings.
+
+Piecewise-linear factor curves interpolate between the following `(input, factor)` points, clamping outside endpoints. This interpolation applies **only to heuristic curves**, not missing values, provider timestamps or grid cells.
+
+| Factor | Points |
 |---|---|
-| Cloud % | (0,100), (10,95), (30,70), (60,30), (100,0) |
-| Wind km/h | (0,100), (5,95), (15,75), (25,40), (40,10), (60,0) |
-| RH % | (0,100), (60,100), (80,80), (90,50), (100,20) |
-| Air − dew point °C | (0,15), (1,30), (3,65), (6,90), (10,100) |
-| Sun altitude ° | (−18,100), (−12,55), (−6,15), (0,0) |
+| Cloud % | (0,1), (20,.9), (50,.55), (80,.2), (100,.05) |
+| Wind km/h | (0,1), (5,.98), (15,.85), (25,.6), (40,.25), (60,.1) |
+| RH % | (0,1), (60,1), (80,.95), (90,.85), (100,.65) |
+| Air − dew point °C | (0,.6), (1,.7), (3,.85), (6,.97), (10,1) |
+| Sun altitude °, deep sky only | (−18,1), (−12,.8), (−6,.4), (0,.15), (15,.05) |
 
-Moon utility = `100 − 100 × illuminated_fraction × (1 − moon_tolerance)` when Moon altitude >0°, otherwise 100. Tolerance is 0 for wide-field/broadband, .8 for narrowband, 1 for planetary/lunar. This does not model Moon–target separation, filter bandwidth or scattering.
+- `dew = min(RH factor, dew-spread factor)`: choose the more adverse indicator rather than multiply two correlated moisture measures. This is equipment-risk guidance, not a surface-condensation forecast. Missing moisture inputs produce insufficient data.
+- `cmcCloud`: each CMC index contributes `[.1, 1, 1, 1, 1, 1]`. A zero explicitly means modeled cloudy sky and remains adverse even if Open-Meteo reports clear sky. This is not nodata or simply poor turbulence.
+- `night`: deep-sky categories use the Sun-altitude curve. Planetary/lunar use 1 because darkness is less critical; planet visibility is not assessed.
+- `moon`: when the Moon is up, `1 − (1 − moonFloor) × illuminatedFraction`. Floors: wide-field .8, broadband .6, narrowband .95. When the Moon is down, use 1. Planetary/lunar use 1. These do not account for target–Moon separation, filter bandwidth or scattering.
+- `moonAltitude`: lunar only, .8 for Moon altitude >0° and <20°, otherwise 1.
+- Lunar requires Moon altitude >0°. A Moon at/below the horizon yields score 0 with an explicit unavailability explanation. This geometry requirement is distinct from soft weather preferences.
 
-Additional **soft multiplicative penalties** prevent a dominant limitation being averaged away:
+Round the clamped final 0–100 result: Good ≥70, Fair 55–69, Marginal 40–54, Poor <40. Missing required data yields null / Insufficient data, never a favorable default. Band thresholds are configurable and independent of the unchanged observing score.
 
-- All categories: each CMC index contributes a factor `[.25, 1, 1, 1, 1, 1]` for values 0–5. A zero explicitly indicates modeled cloud, even if Open-Meteo disagrees; it is not merely poor turbulence/transparency.
-- All categories: cloud factor at cloud % `(0,1), (20,.9), (50,.55), (80,.2), (100,.05)`.
-- Planetary/lunar: detail factor at seeing index `(0,.1), (1,.2), (2,.4), (3,.65), (4,.9), (5,1)`.
-- Broadband: transparency factor `(0,.15), (1,.3), (2,.5), (3,.75), (4,.95), (5,1)`.
-- Deep-sky categories: night factor at Sun altitude `(−18,1), (−12,.8), (−6,.4), (0,.15), (15,.05)`.
-- Wide-field/broadband/narrowband: extra moon factor `1 − (1 − floor) × illuminated_fraction` when Moon is up; floors .8/.65/.97 respectively. No moon factor when Moon is down.
-- Lunar: multiply by .8 for a visible Moon below 20° altitude. Moon at/below 0° is the sole target eligibility rule: lunar score 0 and explicit unavailability explanation. Other conditions are graded, not hard pass/fail weather thresholds.
+### Required combination regression cases
 
-Cloud, seeing, transparency and moonlight appear in weights and factors deliberately: the factors preserve important physical limitations without binary weather cutoffs. RH and dew spread overlap; they are small equipment-risk penalties, not independent probability estimates. CMC indices themselves already incorporate some cloud/moisture effects. These choices are uncalibrated, adjustable and must not be interpreted statistically.
+These examples isolate the atmosphere with neutral environmental modifiers: cloud 0%, wind 0 km/h, RH 40%, temperature 15°C, dew point 3°C, Sun −25°, visible Moon at 35° and illumination 0. These are **explicit test fixtures**, not forecasts or physically asserted Moon geometry. Actual location/hour geometry and weather can reduce the scores.
 
-Round the final clamped 0–100 score. Good ≥70, Fair 55–69, Marginal 40–54, Poor <40. These bands are independent of, and do not change, the observing score. Explanations describe adverse inputs plus geometry/visibility limitations. Narrowband's relative tolerance to artificial light is a general property; **no artificial-light correction is computed** in v1. Equipment, tracking, target altitude/visibility (except Moon), atmospheric dispersion, filter choice, local smoke/aerosols and optical-surface temperature are not included. A daytime planetary rating describes atmospheric suitability, not safe target visibility or solar observing instructions.
+| Seeing / transparency | Wide-field | Broadband | Narrowband | Planetary | Lunar |
+|---|---|---|---|---|---|
+| 1 / 2 | 58 Fair | 21 Poor | 39 Poor | 15 Poor | 15 Poor |
+| 5 / 5 | 100 Good | 100 Good | 100 Good | 100 Good | 100 Good |
+| 5 / 1 | 40 Marginal | 24 Poor | 28 Poor | 91 Good | 91 Good |
+| 1 / 5 | 84 Good | 85 Good | 87 Good | 19 Poor | 19 Poor |
+| 3 / 3 | 83 Good | 61 Fair | 77 Good | 60 Fair | 60 Fair |
+
+### Forecast integrity and tuning
+
+Production always reads the selected location's actual hourly Open-Meteo forecast and validated exact-hour CMC results. There is **no synthetic fallback, sample-index fallback, missing-to-5 conversion or fallback to a different location/run**. The selected location/time and actual seeing/transparency indices and labels are displayed above the cards and on hourly samples. Failed or missing CMC requests remain incomplete, excluded from window ranking.
+
+These curves and weights are the proposed first-pass matrix, **not a universal astronomical imaging standard or empirical calibration**. Compare logged forecasts with imaging sessions before changing utilities, atmospheric weights or weather modifiers. `analyze()` returns the atmospheric component utilities, atmosphere score and individual modifiers to make those comparisons inspectable. CMC indices already reflect some cloud/moisture effects, so factors are heuristic and not independent probabilities.
+
+Narrowband's relative tolerance to artificial light is a general property; no light-pollution correction is computed here. Equipment, tracking, planet/target altitude and visibility (except Moon), atmospheric dispersion, filters, local smoke/aerosols and optical-surface temperature are not included. A daytime planetary rating describes atmospheric quality, not safe target visibility or solar observing instructions.
 
 ## Hourly analysis and request behavior
 
@@ -59,8 +92,19 @@ The category selector updates an hourly strip and up to three best windows. A wi
 
 ## Validation and screenshots
 
-Run `node --test tests/*.test.cjs` and `node scripts/prepare-pages.cjs`. Tests cover excellent/poor/mixed/missing inputs, CMC 0 vs null and exact time/run validation, lunar visibility, relative moon tolerance, smooth penalties, configurable tables, unchanged observing score, and window gaps.
+Run `node --test tests/*.test.cjs` and `node scripts/prepare-pages.cjs`. Tests explicitly cover 1/2, 5/5, 5/1, 1/5 and 3/3, the original matrix ranges/weights, modifiers that cannot improve atmospheric quality, excellent/poor/mixed/missing inputs, CMC 0 vs null and exact time/run validation, lunar visibility, relative moon tolerance, smooth penalties, configurable tables, unchanged observing score, and window gaps.
 
 Screenshots in `docs/screenshots/` use Chicago, Illinois coordinates (41.8781, −87.6298), America/Chicago timezone, and deterministic **test forecasts**, labeled in the screenshot. They illustrate behavior rather than claim current sky conditions. Browser checks cover the selected hour, category changes, hourly analysis, range changes/cancellation, original score consistency, unit switching and mobile width overflow.
 
 For the optional browser check, serve `dist` at port 4173 (`python3 -m http.server 4173 --directory dist`), then run `node scripts/check-imaging-browser.cjs` with Playwright available. Set `CHROMIUM_PATH` if Chromium is not at `/usr/bin/chromium`. This adds no runtime dependency to the site.
+
+### Opt-in actual forecast integration check
+
+With the local site served at port 4173, run:
+
+```sh
+python3 scripts/capture-imaging-forecast.py /tmp/nightwatch-live-chicago.json
+node scripts/check-imaging-live-snapshot.cjs /tmp/nightwatch-live-chicago.json
+```
+
+The capture fetches real Open-Meteo data and CMC metadata/point responses for Chicago's next 1 AM using only the existing APIs. The browser check replays those **unmodified captured responses** through the real app and CMC parser, checks displayed values against the source, and produces `imaging-chicago-live-desktop.png` / `imaging-chicago-live-iphone.png`. The capture timestamp appears on each screenshot. Only that exact CMC sample is supplied; other hours remain unavailable rather than being fabricated. This is a provider-response replay, not a claim that the screenshot remains current. Network errors fail capture without substituting data.
