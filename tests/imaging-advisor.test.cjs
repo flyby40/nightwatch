@@ -103,3 +103,21 @@ test('environmental explanations reflect the greatest recoverable score loss',()
  assert.doesNotMatch(results({seeing:0,transparency:0,cloud:100}).planetary.explanation,/favor/);
  const missing=results({seeing:null,moonAlt:-20}).lunar;assert.equal(missing.score,null);assert.match(missing.explanation,/unavailable regardless.*confidence is incomplete/);
 });
+
+test('favorable windows exclude daylight and twilight for every category, breaking groups at dusk/dawn',()=>{
+ const start=Date.UTC(2026,10,10,0),alts=[-25,-18,-12,0,20,-19,-25];
+ const hours=alts.map((sun,index)=>({...neutral,index,sun,date:new Date(start+index*3600000)}));
+ for(const id of Object.keys(A.config.categories)){
+  const groups=A.windows(hours,id);assert.deepEqual(groups.map(g=>g.indices),[[5,6],[0]]);
+  assert(groups.every(g=>g.indices.every(i=>hours[i].sun<-18)));
+  assert.deepEqual(A.windows(hours.map(h=>({...h,sun:10})),id),[]);
+ }
+});
+test('favorable windows follow the supplied 24/48/72-hour forecast and do not carry later nights backward',()=>{
+ const start=Date.UTC(2026,10,10,0);
+ const hours=Array.from({length:72},(_,index)=>({...neutral,index,date:new Date(start+index*3600000),sun:[5,29,53].includes(index)?-25:10}));
+ for(const horizon of [24,48,72])for(const id of Object.keys(A.config.categories)){
+  const wins=A.windows(hours.slice(0,horizon),id);
+  assert.deepEqual(wins.flatMap(w=>w.indices),[5,29,53].filter(i=>i<horizon));
+ }
+});

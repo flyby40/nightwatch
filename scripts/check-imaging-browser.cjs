@@ -50,6 +50,14 @@ const fs=require('node:fs');const assert=require('node:assert/strict');
  await page.locator('#imaging-analyze').click();await page.locator('#imaging-cancel').click();assert.equal(await page.locator('#imaging-analyze').isDisabled(),false);
  await page.locator('#imaging-analyze').click();await page.locator('[data-range="72"]').click();assert.equal(await page.locator('#imaging-analyze').isDisabled(),false);assert.equal(await page.locator('.imaging-sample').count(),72);
  await page.locator('#imaging-analyze').click();await page.waitForFunction(()=>!document.querySelector('#imaging-analyze').disabled);assert.match(await page.locator('#imaging-progress').textContent(),/72\/72 hours checked/);
+ // Verify displayed windows follow dark hours and the selected forecast scope in both directions.
+ await page.locator('#imaging-category').selectOption('planetary');
+ for(const range of [24,48,72,24]){
+  await page.locator('[data-range="'+range+'"]').click();
+  assert.match(await page.locator('#imaging-window-title').textContent(),new RegExp('next '+range+' hours'));
+  const summary=await page.evaluate(()=>{const hs=state.hours.slice(0,horizon).map(NightwatchImagingUI.input),groups=NightwatchImaging.windows(hs,'planetary');return {valid:groups.every(g=>g.indices.every(i=>i<horizon&&state.hours[i].sun<-18)),count:groups.length,links:document.querySelectorAll('#imaging-windows [data-imaging-hour]').length}});
+  assert(summary.valid);assert.equal(summary.links,summary.count);
+ }
  // A location change during analysis must not retain the old run or its selected data.
  await page.evaluate(()=>{state.hours.forEach(h=>delete h.cmc)});await page.locator('#imaging-analyze').click();await page.evaluate(()=>load(35.1983,-111.6513,'Flagstaff · location-change test'));
  await page.waitForFunction(()=>document.querySelector('#place').textContent==='Flagstaff · location-change test');assert.equal(await page.locator('#imaging-analyze').isDisabled(),false);
