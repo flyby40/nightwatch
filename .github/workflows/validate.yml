@@ -14,6 +14,7 @@ jobs:
         run: |
           node --check dist/imaging-advisor.js
           node --check dist/imaging-ui.js
+          node --check dist/forecast-time.js
           node --check dist/app.js
           node --check dist/cmc.js
           node --check dist/cloud-map.js

@@ -99,3 +99,9 @@ The astronomical-darkness card lists the next sunrise, sunset, astronomical dusk
 ## Imaging Conditions Advisor
 
 The feature adds five selected-hour imaging suitability ratings and on-demand 24/48/72-hour CMC analysis. Missing required inputs stay null / Insufficient data. The existing observing score is unchanged. See [weighting tables, data semantics and limitations](docs/imaging-advisor.md). Screenshot examples use explicitly labeled synthetic forecasts.
+
+## Current-hour forecast periods
+
+On forecast load, the shared 72-period timeline begins at the start of the **selected location’s current calendar hour**, not the next hour or the device’s hour. At 8:01, 8:30 and 8:59 PM, the first period remains 8:00 PM. The 24/48/72 tabs, weather chart, selected map hour, imaging cards/timeline and favorable samples share those timestamps. `dist/forecast-time.js` uses IANA timezone calendar boundaries, including fractional UTC offsets, repeated/missing daylight-saving hours and partial hours during 30-minute DST shifts. Nonexistent hours are skipped; repeated hours retain distinct UTC instants.
+
+Weather values are still looked up by the provider’s **exact Unix timestamp**. A missing current period or missing provider value stays null; the app never substitutes the following hour, interpolates values, or alters scores. There are still 72 periods, sliced to 24/48/72 as selected. Sun/Moon geometry uses each actual period timestamp; the darkness total and milestone cards retain their separate forward-from-now horizon. Most zones have 60-minute periods; rare partial-hour timezone transitions can produce a shorter/longer calendar period. Existing one-hour precipitation totals retain their provider meaning (ending at the timestamp), rather than becoming totals over the current partial period.
