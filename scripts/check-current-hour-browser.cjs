@@ -35,7 +35,7 @@ require('../dist/forecast-time.js');
    assert.equal(out.first.temp,idx<0?null:hourly.temperature_2m[idx]);assert.equal(out.first.cloud,idx<0?null:hourly.cloud_cover[idx]);assert.equal(out.first.precip,idx<0?null:hourly.precipitation[idx]);assert.equal(out.first.score,out.expectedScore);
    for(const range of [24,48,72]){
     await page.locator('[data-range="'+range+'"]').click();
-    assert.equal(await page.locator('#hours .hour').count(),range);const dark=await page.evaluate(n=>state.hours.slice(0,n).flatMap((h,i)=>NightwatchImaging.isDark(h)?[i]:[]),range);assert.equal(await page.locator('#imaging-hours .imaging-sample').count(),dark.length);
+    assert.equal(await page.locator('#hours .hour').count(),range);const dark=await page.evaluate(n=>state.hours.slice(0,n).flatMap((h,i)=>NightwatchImaging.isNight(h)?[i]:[]),range);assert.equal(await page.locator('#imaging-hours .imaging-sample').count(),dark.length);
     const firstLabel=await page.locator('#hours .hour').first().getAttribute('aria-label');
     const label=await page.evaluate(()=>fmt(state.hours[0].date));assert(firstLabel.includes(label));
     if(dark.length){const imagingLabel=await page.locator('#imaging-hours .imaging-sample').first().textContent();const darkLabel=await page.evaluate(i=>fmt(state.hours[i].date),dark[0]);assert(imagingLabel.includes(darkLabel));}

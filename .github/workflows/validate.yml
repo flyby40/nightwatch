@@ -12,6 +12,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check JavaScript
         run: |
+          node --check dist/observability.js
           node --check dist/imaging-advisor.js
           node --check dist/imaging-ui.js
           node --check dist/forecast-time.js
