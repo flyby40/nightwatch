@@ -30,6 +30,8 @@ The default minimum altitude is **20°**, adjustable to 0°, 10°, 20°, 30° or
 
 The atmospheric panel reuses the existing validated CMC seeing/transparency and weather inputs via `NightwatchImagingUI.input`. No naked placeholder values or missing-to-excellent fallback is used. “Analyze nighttime conditions” and “Stop analysis” share the advisor's existing on-demand nighttime CMC workflow. Missing inputs remain Insufficient data. The generic planetary/lunar advisor and its target-availability caveats remain unchanged.
 
+Atmospheric ratings in the best-sample entries, selected-hour field and hourly strip use the existing suitability bands and colors: Poor red, Marginal orange, Fair yellow, Good green, unavailable gray. Best entries include the text label and mean score, with matching time-link/left-border colors. Availability labels remain independent. Best windows continue to admit only Fair/Good conditions; adding colors does not change scores or eligibility.
+
 Target-specific best windows require nighttime eligibility, calculated target above the horizon, altitude preference met, and a complete Fair/Good planetary atmospheric rating. Ineligible, low-altitude, missing-weather and missing-geometry samples break groups and never enter averages. Group consecutive original forecast timestamps; rank by mean atmospheric score, peak sampled altitude, then earliest timestamp, showing at most three windows. These are sampled timestamps, not guaranteed continuous observing intervals. Clicking a sample/window selects the original shared weather/imaging/map hour.
 
 ## Site elevation above mean sea level

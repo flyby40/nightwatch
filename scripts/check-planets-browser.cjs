@@ -40,6 +40,15 @@ const {chromium}=require('playwright'),fs=require('node:fs'),assert=require('nod
   await page.evaluate(()=>load(35.1983,-111.6513,'Flagstaff · second test location'));assert.match(await page.locator('#planet-height-source').textContent(),/Modeled elevation/);
   await page.evaluate(()=>load(41.8781,-87.6298,'Chicago · explicit test forecast'));assert.match(await page.locator('#planet-height-source').textContent(),/User-entered.*304\.8 m/);
   await page.locator('#units').selectOption('imperial');await page.locator('#planet-analyze').click();await page.waitForFunction(()=>!state.imagingRunning);await page.locator('.planet-sample[data-status="above"]').first().click();
+  // Atmospheric grades use the same colors everywhere, independent of target availability.
+  const savedCMC=await page.evaluate(()=>JSON.stringify(state.hours[selected].cmc));
+  for(const [seeing,transparency,quality,color]of [[1,2,'poor','rgb(242, 139, 136)'],[3,1,'marginal','rgb(242, 178, 120)'],[3,3,'fair','rgb(231, 216, 120)'],[5,5,'good','rgb(188, 234, 161)']]){
+   await page.evaluate(({seeing,transparency})=>{const h=state.hours[selected];h.cmc.seeing.data.value=seeing;h.cmc.transparency.data.value=transparency;renderCMC();renderImaging()},{seeing,transparency});
+   const label=page.locator('.planet-sample.selected .planet-quality');assert.equal(await label.getAttribute('data-quality'),quality);assert.equal(await label.evaluate(e=>getComputedStyle(e).color),color);assert.equal(await page.locator('#planet-atmosphere').evaluate(e=>getComputedStyle(e).color),color);
+  }
+  await page.evaluate(saved=>{state.hours[selected].cmc=JSON.parse(saved);for(const h of state.hours.slice(0,horizon)){if([8,9].includes(h.date.getUTCHours())&&h.cmc?.seeing?.data&&h.cmc?.transparency?.data){h.cmc.seeing.data.value=3;h.cmc.transparency.data.value=3}}renderCMC();renderImaging()},savedCMC);
+  assert((await page.locator('#planet-windows li[data-quality="fair"]').count())>0);assert((await page.locator('#planet-windows li[data-quality="good"]').count())>0);
+  assert.equal(await page.locator('#planet-windows li[data-quality="fair"] .planet-window-rating').first().evaluate(e=>getComputedStyle(e).color),'rgb(231, 216, 120)');assert.match(await page.locator('#planet-windows li[data-quality="fair"]').first().textContent(),/Fair/);
   if(!await page.locator('#planet-height').isVisible())await page.locator('.planet-elevation summary').click();
   await page.evaluate(()=>{const p=document.createElement('p');p.textContent='TEST FORECAST · Synthetic weather/site measurement · Calculated planet geometry';p.style.cssText='color:#e7d878;font-size:13px;line-height:1.8';document.querySelector('#planet-panel').prepend(p)});
   fs.mkdirSync('docs/screenshots',{recursive:true});await page.locator('#planet-panel').screenshot({path:'docs/screenshots/planet-desktop.png'});
