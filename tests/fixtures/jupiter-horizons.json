@@ -1,0 +1,47 @@
+{
+  "source": "NASA/JPL Horizons",
+  "url": "https://ssd.jpl.nasa.gov/api/horizons.api?format=json&COMMAND=%27599%27&EPHEM_TYPE=%27OBSERVER%27&CENTER=%27coord%40399%27&COORD_TYPE=%27GEODETIC%27&SITE_COORD=%27-87.6298%2C41.8781%2C0%27&START_TIME=%272026-11-14+02%3A00%27&STOP_TIME=%272026-11-14+14%3A00%27&STEP_SIZE=%272h%27&QUANTITIES=%274%27&APPARENT=%27AIRLESS%27&CSV_FORMAT=%27YES%27&TIME_DIGITS=%27SECONDS%27",
+  "retrievedAt": "2026-11-13T17:33:44.004994+00:00",
+  "body": "Jupiter",
+  "latitude": 41.8781,
+  "longitude": -87.6298,
+  "heightMeters": 0,
+  "refraction": "airless",
+  "rows": [
+    {
+      "time": "2026-11-14T02:00:00Z",
+      "azimuth": 30.701023,
+      "altitude": -29.026036
+    },
+    {
+      "time": "2026-11-14T04:00:00Z",
+      "azimuth": 57.340388,
+      "altitude": -13.422975
+    },
+    {
+      "time": "2026-11-14T06:00:00Z",
+      "azimuth": 78.138609,
+      "altitude": 7.229084
+    },
+    {
+      "time": "2026-11-14T08:00:00Z",
+      "azimuth": 98.237943,
+      "altitude": 29.493525
+    },
+    {
+      "time": "2026-11-14T10:00:00Z",
+      "azimuth": 125.613537,
+      "altitude": 50.231841
+    },
+    {
+      "time": "2026-11-14T12:00:00Z",
+      "azimuth": 175.330385,
+      "altitude": 61.686769
+    },
+    {
+      "time": "2026-11-14T14:00:00Z",
+      "azimuth": 228.683504,
+      "altitude": 52.884051
+    }
+  ]
+}
