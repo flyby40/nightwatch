@@ -13,6 +13,7 @@ jobs:
       - name: Check JavaScript
         run: |
           node --check dist/observability.js
+          node --check dist/moon-events.js
           node --check dist/imaging-advisor.js
           node --check dist/imaging-ui.js
           node --check dist/forecast-time.js

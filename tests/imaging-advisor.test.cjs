@@ -1,5 +1,5 @@
 const {test}=require('node:test');const assert=require('node:assert/strict');
-require('../dist/observability.js');require('../dist/imaging-advisor.js');require('../dist/viewing-score.js');require('../dist/cmc.js');
+require('../dist/observability.js');require('../dist/moon-events.js');require('../dist/imaging-advisor.js');require('../dist/viewing-score.js');require('../dist/cmc.js');
 const A=global.NightwatchImaging;
 const excellent={seeing:5,transparency:5,cloud:0,wind:2,humidity:40,temp:15,dew:3,moonIllum:.05,moonAlt:35,planetAlt:45,sun:-25};
 const results=over=>Object.fromEntries(A.analyze({...excellent,...over}).map(r=>[r.id,r]));
@@ -134,7 +134,7 @@ test('daylight is ineligible rather than a numeric weather rating; twilight resp
 
 test('daylight is excluded from windows; target availability does not restrict atmospheric windows',()=>{
  const start=Date.UTC(2026,10,10,0),hs=[{...neutral},{...neutral,sun:15},{...neutral,moonAlt:-10}].map((h,index)=>({...h,index,date:new Date(start+index*3600000)}));
- const lunar=A.windows(hs,'lunar');assert.equal(lunar.length,2);assert.deepEqual(lunar[0].indices,[0]);assert.equal(lunar[0].average,A.analyze(hs[0]).find(r=>r.id==='lunar').score);assert(lunar.some(g=>g.indices.includes(2)));
+ const lunar=A.windows(hs,'lunar');assert.equal(lunar.length,1);assert.deepEqual(lunar[0].indices,[0]);assert.equal(lunar[0].average,A.analyze(hs[0]).find(r=>r.id==='lunar').score);assert(!lunar.some(g=>g.indices.includes(2)));
  assert.equal(A.windows(hs.map(h=>({...h,planetAlt:null})),'planetary').length,2);
  const weather=results({cloud:90}).wide;assert.equal(weather.eligibility.eligible,true);assert.equal(weather.rating,'Poor');assert.notEqual(weather.rating,results({sun:15}).wide.rating);
 });
@@ -144,4 +144,11 @@ test('both high-resolution categories carry the exact target availability note w
   const out=results({sun,...over});for(const id of ['planetary','lunar']){assert.equal(out[id].targetNote,'*subject to target availability');assert.equal(out[id].eligibility.eligible,true);assert(out[id].score>0);}
  }
  for(const id of ['planetary','lunar'])assert.equal(results({sun:20})[id].rating,'Not observable');
+});
+
+test('lunar atmospheric scores remain target-independent but observing windows exclude Moon-down samples',()=>{
+ const start=Date.UTC(2026,10,13,0),hs=[false,true,false,true].map((above,index)=>({...neutral,index,date:new Date(start+index*3600000),moonAvailability:{above}}));
+ assert.equal(A.analyze(hs[0]).find(r=>r.id==='lunar').rating,'Good');
+ assert.deepEqual(A.windows(hs,'lunar').flatMap(g=>g.indices),[1,3]);
+ assert.deepEqual(A.windows(hs.map(h=>({...h,moonAvailability:{above:false}})),'lunar'),[]);
 });

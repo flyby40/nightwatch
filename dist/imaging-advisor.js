@@ -76,7 +76,7 @@ function analyze(h={},c=config){
 // Windows contain consecutive forecast samples, not guaranteed continuous conditions.
 function windows(hours,id,c=config){
  const groups=[];let group=null;
- for(const h of hours){const r=analyze(h,c).find(r=>r.id===id),t=+h.date;if(!valid(t)||r.score===null||r.score<c.bands.fair){group=null;continue;}
+ for(const h of hours){const r=analyze(h,c).find(r=>r.id===id),t=+h.date;if(!valid(t)||(id==='lunar'&&NightwatchMoon.isUp(h)!==true)||r.score===null||r.score<c.bands.fair){group=null;continue;}
   if(!group||t-group.end!==3600000){group={start:t,end:t,scores:[],indices:[]};groups.push(group)}
   group.end=t;group.scores.push(r.score);group.indices.push(h.index);
  }
