@@ -37,6 +37,8 @@ const fs=require('node:fs');const assert=require('node:assert/strict');
  const oneAM=await page.evaluate(()=>state.hours.findIndex(h=>h.date.toISOString()==='2026-11-10T07:00:00.000Z'));
  await page.locator('#imaging-hours [data-imaging-hour="'+oneAM+'"]').click();
  assert.match(await page.locator('#imaging-inputs').textContent(),/seeing: 1\/5.*Transparency: 2\/5/);
+ assert.equal(await page.locator('.imaging-card').nth(4).locator('.lunar-availability').getAttribute('data-availability'),'down');assert.match(await page.locator('.imaging-card').nth(4).locator('.lunar-availability').textContent(),/moonrise/);assert.match(await page.locator('.imaging-card').nth(4).locator('.lunar-availability').textContent(),/daylight; outside observing hours/);
+ await page.locator('#imaging-category').selectOption('lunar');assert(await page.evaluate(()=>[...document.querySelectorAll('#imaging-windows [data-imaging-hour]')].every(e=>NightwatchMoon.isUp(state.hours[Number(e.dataset.imagingHour)])===true)));
  assert.match(await page.locator('#imaging-cards .imaging-card').nth(3).textContent(),/Poor/);
  assert.deepEqual(await page.evaluate(()=>{const h=NightwatchImagingUI.input({seeing:5,transparency:5},0);return [h.seeing,h.transparency]}),[null,null]);
  assert.equal(await page.locator('#score').textContent(),await page.evaluate(()=>String(NightwatchScore.infer(state.hours[selected]))));
@@ -62,7 +64,10 @@ const fs=require('node:fs');const assert=require('node:assert/strict');
   assert.match(await page.locator('#imaging-window-title').textContent(),new RegExp('next '+range+' hours'));
   const summary=await page.evaluate(()=>{const hs=state.hours.slice(0,horizon).map(NightwatchImagingUI.input),groups=NightwatchImaging.windows(hs,'planetary');return {valid:groups.every(g=>g.indices.every(i=>i<horizon&&NightwatchImaging.isNight(state.hours[i]))),count:groups.length,links:document.querySelectorAll('#imaging-windows [data-imaging-hour]').length}});
   assert(summary.valid);assert.equal(summary.links,summary.count);
+  const expectedMoon=await page.evaluate(()=>astronomy().events.filter(e=>['Moonrise','Moonset'].includes(e.label)).map(e=>({label:e.label,time:fmt(e.date)})));
+  const actualMoon=await page.locator('#events .event').evaluateAll(es=>es.filter(e=>['Moonrise','Moonset'].includes(e.querySelector('b').textContent)).map(e=>({label:e.querySelector('b').textContent,time:e.querySelector('time').textContent})));assert.deepEqual(actualMoon,expectedMoon);if(range===72)assert(actualMoon.length>=4);
  }
+ await page.evaluate(()=>{const panel=document.querySelector('.events'),p=document.createElement('p');p.textContent='CALCULATED EVENTS · Chicago · fixed test date';p.style.cssText='color:#e7d878;font-size:12px';panel.prepend(p);document.querySelector('#events').style.maxHeight='none'});await page.locator('.events').screenshot({path:'docs/screenshots/astronomy-milestones.png'});
  // Twilight atmospheric ratings need no target, and both high-resolution categories show the caveat.
  await page.locator('#imaging-category').selectOption('planetary');assert((await page.locator('#imaging-windows [data-imaging-hour]').count())>0);assert.equal(await page.locator('#imaging-target-note').textContent(),'*subject to target availability');
  const twilight=await page.evaluate(()=>state.hours.slice(0,horizon).findIndex(h=>NightwatchObservability.phase(h)==='twilight'));
@@ -76,5 +81,9 @@ const fs=require('node:fs');const assert=require('node:assert/strict');
  await page.waitForFunction(()=>document.querySelector('#place').textContent==='Flagstaff · location-change test');assert.equal(await page.locator('#imaging-analyze').isDisabled(),false);
  // Explicit no-dark-hours fixture (e.g. a polar-day forecast): empty advisor, weather retained.
  await page.evaluate(()=>{state.hours.forEach(h=>{h.sun=10;h.solar={daylight:true}});selected=0;render()});assert.equal(await page.locator('.imaging-card').count(),0);assert.equal(await page.locator('.imaging-sample').count(),0);assert(await page.locator('#imaging-analyze').isDisabled());assert.match(await page.locator('#imaging-inputs').textContent(),/No nighttime hours/);assert.equal(await page.locator('#hours .hour').count(),24);
+ // Missing calculated crossings must be shown as null, never guessed.
+ await page.evaluate(()=>{window.originalMoonTimes=SunCalc.getMoonTimes;SunCalc.getMoonTimes=()=>({alwaysUp:true});render()});
+ for(const label of ['Moonrise','Moonset'])assert.equal(await page.locator('#events .event').filter({has:page.locator('b',{hasText:label})}).locator('time').textContent(),'null');
+ await page.evaluate(()=>{SunCalc.getMoonTimes=window.originalMoonTimes});
  assert.deepEqual(errors,[]);await browser.close();console.log('Chicago, Illinois browser checks passed: all categories, missing CMC, 24/48/72h, stop, location change, units, unchanged score, desktop and 320/390/430px layouts.');
 })().catch(e=>{console.error(e);process.exit(1)});
