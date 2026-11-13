@@ -113,3 +113,9 @@ Observability is a separate policy in `dist/observability.js`: calculated local 
 Astronomy milestones includes every calculated Moonrise/Moonset in the selected 24/48/72-hour range, chronologically merged with the Sun events and displayed in the selected location’s timezone. The Moon card uses the same crossings. Missing crossings remain null. `dist/moon-events.js` scans UTC days with the existing SunCalc implementation, avoiding device-timezone and DST ambiguity.
 
 Lunar advice retains its atmospheric rating and `*subject to target availability`, but separately displays whether the Moon is above the calculated horizon and the next rise/set within the selected range. For the current hour, availability is evaluated at forecast update time; future periods use their forecast timestamp. Only Moon-up nighttime samples enter lunar best-window rankings/averages. Actual horizon obstructions are not modeled. No new API or planetary-target selection is added.
+
+## Planet visibility and measured site elevation
+
+The Planet visibility panel uses a pinned, locally bundled Astronomy Engine 2.1.19 to calculate Mercury–Neptune altitude, azimuth/direction and rise/set events for the selected 24/48/72 forecast. Availability, a configurable minimum altitude and target-specific windows are separate from atmospheric scores. Daylight remains Not observable. Existing SunCalc solar/lunar calculations are retained.
+
+An optional site-elevation field accepts meters or feet, saved for the selected coordinates. A user measurement overrides the existing Open-Meteo modeled elevation; missing values use an explicitly labeled sea-level reference rather than claiming a known height. See [model conventions, provenance, elevation handling and tests](docs/planet-visibility.md).

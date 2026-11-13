@@ -1,0 +1,10 @@
+{
+  "package": "astronomy-engine",
+  "version": "2.1.19",
+  "license": "MIT",
+  "licenseSource": "MIT notice embedded in the unmodified npm browser bundle",
+  "tarball": "https://registry.npmjs.org/astronomy-engine/-/astronomy-engine-2.1.19.tgz",
+  "integrity": "sha512-8yWKNf7UeNbH458h3sAJ6ZgAjE5jTXp/mNNRFoC20j2SHwZIjAQeEsBB2Q3uCFRaTCCJRv33K2XhkhZQMXoX6w==",
+  "upstreamTag": "v2.1.19",
+  "browserSha256": "f41139a87941ea017ab902b954c9389fa27ea72083d7fab4971756d7769d14e6"
+}
