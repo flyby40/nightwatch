@@ -57,3 +57,13 @@ footer{line-height:1.8;padding-bottom:max(24px,env(safe-area-inset-bottom))}dial
 .planet-panel h3{font-size:16px;font-weight:500;line-height:1.6}
 
 #planet-stop[hidden]{display:none}
+
+.planet-quality[data-quality=poor],#planet-atmosphere[data-quality=poor],#planet-windows li[data-quality=poor]{--planet-quality:#f28b88}
+.planet-quality[data-quality=marginal],#planet-atmosphere[data-quality=marginal],#planet-windows li[data-quality=marginal]{--planet-quality:#f2b278}
+.planet-quality[data-quality=fair],#planet-atmosphere[data-quality=fair],#planet-windows li[data-quality=fair]{--planet-quality:#e7d878}
+.planet-quality[data-quality=good],#planet-atmosphere[data-quality=good],#planet-windows li[data-quality=good]{--planet-quality:#bceaa1}
+.planet-quality[data-quality=unavailable],#planet-atmosphere[data-quality=unavailable],#planet-windows li[data-quality=unavailable]{--planet-quality:#93a0a3}
+.planet-sample .planet-quality,#planet-atmosphere[data-quality],#planet-windows .planet-window-rating{color:var(--planet-quality,#93a0a3)}
+#planet-windows li[data-quality]{border-left:3px solid var(--planet-quality);padding-left:12px}
+#planet-windows li[data-quality] button{color:var(--planet-quality)}
+#planet-windows .planet-window-rating{font-weight:700;margin:3px 0}
