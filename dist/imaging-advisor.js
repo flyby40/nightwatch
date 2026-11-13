@@ -39,7 +39,7 @@ function explain(id,h,spec,components,atmospheric,modifiers){
  }
  const [dominant,loss]=losses.sort((a,b)=>b[1]-a[1])[0];
  // Small departures from ideal do not warrant declaring a dominant limitation.
- if(loss<5&&atmospheric>=90&&Object.values(modifiers).every(v=>v>=.95)){const favorable={wide:'Clear skies favor wide-field star fields and clusters.',broadband:'Clear, transparent skies favor faint broadband structure.',narrowband:'Transparent skies favor emission-nebula signal through narrowband filters.',planetary:'Steady seeing favors fine planetary detail; confirm planet visibility.',lunar:'Steady seeing favors detail on the visible Moon.'};return {dominantLimitation:null,explanation:favorable[id]};}
+ if(loss<5&&atmospheric>=90&&Object.values(modifiers).every(v=>v>=.95)){const favorable={wide:'Clear skies favor wide-field star fields and clusters.',broadband:'Clear, transparent skies favor faint broadband structure.',narrowband:'Transparent skies favor emission-nebula signal through narrowband filters.',planetary:'Steady seeing favors fine detail on the visible selected planet.',lunar:'Steady seeing favors detail on the visible Moon.'};return {dominantLimitation:null,explanation:favorable[id]};}
  const seeing=h.seeing===1?'Very poor':h.seeing===2?'Poor':h.seeing===3?'Average':'Less-than-excellent';
  const transparency=h.transparency<=2?'Poor':h.transparency===3?'Average':'Less-than-excellent';
  const atmosphericText={
@@ -50,7 +50,7 @@ function explain(id,h,spec,components,atmospheric,modifiers){
   lunar:{seeing:seeing+' seeing '+(h.seeing<=2?'severely limits':'limits')+' fine lunar detail.',transparency:transparency+' transparency reduces lunar contrast despite the Moon being visible.'}
  };
  const subjects={wide:'wide-field star images',broadband:'faint broadband exposures',narrowband:'narrowband nebula exposures',planetary:'fine planetary detail',lunar:'fine lunar detail'},subject=subjects[id];
- const environmental={cloud:'Cloud cover is the main limitation for '+subject+'.',cmcCloud:'CMC predicts a cloudy sky, limiting '+subject+'.',wind:'Wind is the main risk to '+subject+(spec.detail?' through image shake.':' through tracking errors and enlarged stars.'),dew:'Dew/frost risk is the main equipment limitation for '+subject+'; use dew protection and monitor optics.',night:'Twilight or daylight is the main sky-background limitation for '+subject+'.',moon:'Moonlight is the main sky-background limitation for '+subject+(id==='narrowband'?'; narrowband filters help, but do not eliminate it.':'.'),moonAltitude:'Low Moon altitude is the main limitation to fine lunar detail.'};
+ const environmental={cloud:'Cloud cover is the main limitation for '+subject+'.',cmcCloud:'CMC predicts a cloudy sky, limiting '+subject+'.',wind:'Wind is the main risk to '+subject+(spec.detail?' through image shake.':' through tracking errors and enlarged stars.'),dew:'Dew/frost risk is the main equipment limitation for '+subject+'; use dew protection and monitor optics.',night:'Twilight is the main sky-background limitation for '+subject+'.',moon:'Moonlight is the main sky-background limitation for '+subject+(id==='narrowband'?'; narrowband filters help, but do not eliminate it.':'.'),moonAltitude:'Low Moon altitude is the main limitation to fine lunar detail.'};
  return {dominantLimitation:dominant,explanation:atmosphericText[id][dominant]||environmental[dominant]};
 }
 function analyze(h={},c=config){
