@@ -1,7 +1,7 @@
 const {test}=require('node:test');const assert=require('node:assert/strict');
-require('../dist/imaging-advisor.js');require('../dist/viewing-score.js');require('../dist/cmc.js');
+require('../dist/observability.js');require('../dist/imaging-advisor.js');require('../dist/viewing-score.js');require('../dist/cmc.js');
 const A=global.NightwatchImaging;
-const excellent={seeing:5,transparency:5,cloud:0,wind:2,humidity:40,temp:15,dew:3,moonIllum:.05,moonAlt:35,sun:-25};
+const excellent={seeing:5,transparency:5,cloud:0,wind:2,humidity:40,temp:15,dew:3,moonIllum:.05,moonAlt:35,planetAlt:45,sun:-25};
 const results=over=>Object.fromEntries(A.analyze({...excellent,...over}).map(r=>[r.id,r]));
 test('excellent inputs favor all five categories and severe weather is poor',()=>{
  assert.equal(A.analyze(excellent).length,5);assert(A.analyze(excellent).every(r=>r.rating==='Good'));
@@ -11,14 +11,14 @@ test('poor seeing limits detail while wide fields remain useful; poor transparen
  const mixed=results({seeing:1});assert.equal(mixed.wide.rating,'Good');assert.equal(mixed.planetary.rating,'Poor');assert.equal(mixed.lunar.rating,'Poor');
  assert.match(mixed.planetary.explanation,/poor seeing/i);assert.equal(results({transparency:1}).broadband.rating,'Poor');
 });
-test('narrowband tolerates moonlight better; lunar requires Moon above horizon',()=>{
+test('narrowband tolerates moonlight better; lunar weather advice is independent of target altitude',()=>{
  const dark=results({moonIllum:0}),bright=results({moonIllum:1});assert(dark.broadband.score-bright.broadband.score>dark.narrowband.score-bright.narrowband.score);
  assert.equal(bright.broadband.rating,'Fair');assert.equal(bright.narrowband.rating,'Good');
- const below=results({moonAlt:-1,moonIllum:1});assert.equal(below.lunar.score,0);assert.match(below.lunar.explanation,/below the horizon/);assert.equal(below.broadband.score,dark.broadband.score);
- assert(results({moonAlt:5}).lunar.score<results({moonAlt:45}).lunar.score);
+ const below=results({moonAlt:-1,moonIllum:1});assert.equal(below.lunar.score,dark.lunar.score);assert.equal(below.lunar.targetNote,'*subject to target availability');assert.equal(below.broadband.score,dark.broadband.score);
+ assert.equal(results({moonAlt:5}).lunar.score,results({moonAlt:45}).lunar.score);
 });
 test('missing, invalid and fractional indices stay insufficient; valid zero is poor, never missing',()=>{
- for(const key of Object.keys(excellent))for(const value of [null,undefined,NaN,'5'])assert(Object.values(results({[key]:value})).every(r=>r.score===null&&r.rating==='Insufficient data'));
+ for(const key of Object.keys(excellent).filter(k=>k!=='planetAlt'))for(const value of [null,undefined,NaN,'5'])for(const r of Object.values(results({[key]:value}))){if(['moonAlt','moonIllum'].includes(key)&&['planetary','lunar'].includes(r.id))assert(r.score>0);else assert(r.score===null&&r.rating==='Insufficient data');}
  for(const value of [-1,6,2.5])assert.equal(results({seeing:value}).wide.score,null);
  assert(Object.values(results({seeing:0,transparency:0,cloud:0})).every(r=>r.rating==='Poor'&&r.confidence==='complete'));
  assert.equal(results({seeing:0}).wide.rating,'Poor');assert.equal(results({transparency:0}).wide.rating,'Poor');
@@ -26,7 +26,7 @@ test('missing, invalid and fractional indices stay insufficient; valid zero is p
 test('penalties vary smoothly and respond to wind, humidity and dew spread; daylight limits deep sky',()=>{
  for(const field of ['cloud','wind','humidity']){const base=results({[field]:50}),worse=results({[field]:51});assert(worse.wide.score<=base.wide.score);}
  assert(results({temp:15,dew:14}).wide.score<results({temp:15,dew:0}).wide.score);
- assert.equal(results({sun:20}).broadband.rating,'Poor');assert.equal(results({sun:20}).planetary.score,results({sun:-25}).planetary.score);
+ assert.equal(results({sun:20}).broadband.rating,'Not observable');assert.equal(results({sun:20}).planetary.score,null);
  assert.equal(A.curve([[0,0],[10,100]],5),50);
 });
 test('configurable tables do not mutate inputs or change the original observing score',()=>{
@@ -88,18 +88,60 @@ test('explanations identify category-specific dominant limitations for seeing 1 
  assert.match(out.narrowband.explanation,/Narrowband filtering.*poor transparency still reduces signal/);
  assert.equal(out.planetary.dominantLimitation,'seeing');
  assert.match(out.planetary.explanation,/Very poor seeing severely limits fine planetary detail/);
- assert.equal(out.lunar.dominantLimitation,'visibility');
- assert.match(out.lunar.explanation,/unavailable regardless of atmospheric quality/);
+ assert.equal(out.lunar.dominantLimitation,'seeing');
+ assert.match(out.lunar.explanation,/fine lunar detail/);
 });
 test('environmental explanations reflect the greatest recoverable score loss',()=>{
  for(const [over,driver,text]of [
   [{cloud:90},'cloud',/Cloud cover/],
   [{wind:55},'wind',/Wind/],
   [{humidity:100,dew:15},'dew',/Dew\/frost/],
-  [{sun:10},'night',/Twilight or daylight/],
+  [{sun:10},'daylight',/Daylight/],
   [{moonIllum:1},'moon',/Moonlight/]
  ]){const r=results(over).broadband;assert.equal(r.dominantLimitation,driver);assert.match(r.explanation,text);}
  assert.equal(results({seeing:0,transparency:0,cloud:100}).planetary.dominantLimitation,'cmcCloud');
  assert.doesNotMatch(results({seeing:0,transparency:0,cloud:100}).planetary.explanation,/favor/);
- const missing=results({seeing:null,moonAlt:-20}).lunar;assert.equal(missing.score,null);assert.match(missing.explanation,/unavailable regardless.*confidence is incomplete/);
+ const missing=results({seeing:null,moonAlt:-20}).lunar;assert.equal(missing.score,null);assert.match(missing.explanation,/confidence is incomplete/);
+});
+
+test('windows reject daylight but allow visible high-resolution targets in twilight',()=>{
+ const start=Date.UTC(2026,10,10,0),alts=[-25,-18,-12,0,20,-19,-25];
+ const hours=alts.map((sun,index)=>({...neutral,index,sun,date:new Date(start+index*3600000)}));
+ for(const id of Object.keys(A.config.categories)){
+  const groups=A.windows(hours,id);assert(groups.every(g=>g.indices.every(i=>hours[i].sun<-.833)));
+  assert.deepEqual(A.windows(hours.map(h=>({...h,sun:10})),id),[]);
+ }
+ assert(A.windows(hours,'planetary').some(g=>g.indices.includes(2)));
+});
+test('favorable windows follow the supplied 24/48/72-hour forecast and do not carry later nights backward',()=>{
+ const start=Date.UTC(2026,10,10,0);
+ const hours=Array.from({length:72},(_,index)=>({...neutral,index,date:new Date(start+index*3600000),sun:[5,29,53].includes(index)?-25:10}));
+ for(const horizon of [24,48,72])for(const id of Object.keys(A.config.categories)){
+  const wins=A.windows(hours.slice(0,horizon),id);
+  assert.deepEqual(wins.flatMap(w=>w.indices),[5,29,53].filter(i=>i<horizon));
+ }
+});
+
+test('daylight is ineligible rather than a numeric weather rating; twilight respects target visibility',()=>{
+ for(const sun of [-.5,0,20,89])for(const r of Object.values(results({sun}))){assert.equal(r.score,null);assert.equal(r.rating,'Not observable');assert.equal(r.eligibility.status,'daylight');}
+ assert.equal(results({sun:-12}).planetary.rating,'Good');assert.equal(results({sun:-12}).lunar.rating,'Good');
+ assert.equal(results({sun:-12,planetAlt:null}).planetary.rating,'Good');
+ assert.equal(results({sun:-12,planetAlt:-3}).planetary.rating,'Good');
+ assert.equal(results({sun:-12,moonAlt:-3}).lunar.rating,'Good');
+ assert.equal(results({sun:-18}).wide.eligibility.preferred,true);
+ assert.equal(results({sun:-12}).wide.eligibility.preferred,false);
+});
+
+test('daylight is excluded from windows; target availability does not restrict atmospheric windows',()=>{
+ const start=Date.UTC(2026,10,10,0),hs=[{...neutral},{...neutral,sun:15},{...neutral,moonAlt:-10}].map((h,index)=>({...h,index,date:new Date(start+index*3600000)}));
+ const lunar=A.windows(hs,'lunar');assert.equal(lunar.length,2);assert.deepEqual(lunar[0].indices,[0]);assert.equal(lunar[0].average,A.analyze(hs[0]).find(r=>r.id==='lunar').score);assert(lunar.some(g=>g.indices.includes(2)));
+ assert.equal(A.windows(hs.map(h=>({...h,planetAlt:null})),'planetary').length,2);
+ const weather=results({cloud:90}).wide;assert.equal(weather.eligibility.eligible,true);assert.equal(weather.rating,'Poor');assert.notEqual(weather.rating,results({sun:15}).wide.rating);
+});
+
+test('both high-resolution categories carry the exact target availability note without target gating',()=>{
+ for(const sun of [-12,-25])for(const over of [{planetAlt:null,moonAlt:-30},{planetAlt:-30,moonAlt:30},{planetAlt:null,moonAlt:null,moonIllum:null}]){
+  const out=results({sun,...over});for(const id of ['planetary','lunar']){assert.equal(out[id].targetNote,'*subject to target availability');assert.equal(out[id].eligibility.eligible,true);assert(out[id].score>0);}
+ }
+ for(const id of ['planetary','lunar'])assert.equal(results({sun:20})[id].rating,'Not observable');
 });
