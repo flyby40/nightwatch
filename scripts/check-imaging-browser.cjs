@@ -37,7 +37,7 @@ const fs=require('node:fs');const assert=require('node:assert/strict');
  const oneAM=await page.evaluate(()=>state.hours.findIndex(h=>h.date.toISOString()==='2026-11-10T07:00:00.000Z'));
  await page.locator('#imaging-hours [data-imaging-hour="'+oneAM+'"]').click();
  assert.match(await page.locator('#imaging-inputs').textContent(),/seeing: 1\/5.*Transparency: 2\/5/);
- assert.equal(await page.locator('.imaging-card').nth(4).locator('.lunar-availability').getAttribute('data-availability'),'down');assert.match(await page.locator('.imaging-card').nth(4).locator('.lunar-availability').textContent(),/moonrise/);
+ assert.equal(await page.locator('.imaging-card').nth(4).locator('.lunar-availability').getAttribute('data-availability'),'down');assert.match(await page.locator('.imaging-card').nth(4).locator('.lunar-availability').textContent(),/moonrise/);assert.match(await page.locator('.imaging-card').nth(4).locator('.lunar-availability').textContent(),/daylight; outside observing hours/);
  await page.locator('#imaging-category').selectOption('lunar');assert(await page.evaluate(()=>[...document.querySelectorAll('#imaging-windows [data-imaging-hour]')].every(e=>NightwatchMoon.isUp(state.hours[Number(e.dataset.imagingHour)])===true)));
  assert.match(await page.locator('#imaging-cards .imaging-card').nth(3).textContent(),/Poor/);
  assert.deepEqual(await page.evaluate(()=>{const h=NightwatchImagingUI.input({seeing:5,transparency:5},0);return [h.seeing,h.transparency]}),[null,null]);

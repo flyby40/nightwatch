@@ -20,7 +20,8 @@ function at(date,list,lat,lon,astro){
  const altitude=astro.getMoonPosition(date,lat,lon).altitude*180/Math.PI;
  // Match SunCalc.getMoonTimes' 0.133° apparent-altitude horizon convention.
  const above=previous?previous.kind==='rise':next?next.kind==='set':finite(altitude)?altitude>=.133:null;
- return {above,time:new Date(t),nextRise:list.find(e=>e.kind==='rise'&&+e.date>t)?.date??null,nextSet:list.find(e=>e.kind==='set'&&+e.date>t)?.date??null};
+ const rise=list.find(e=>e.kind==='rise'&&+e.date>t),set=list.find(e=>e.kind==='set'&&+e.date>t);
+ return {above,time:new Date(t),nextRise:rise?.date??null,nextRiseDaylight:rise?.daylight??null,nextSet:set?.date??null};
 }
 function isUp(h){return typeof h?.moonAvailability?.above==='boolean'?h.moonAvailability.above:finite(h?.moonAlt)?h.moonAlt>=.133:null}
 root.NightwatchMoon={events,at,isUp};

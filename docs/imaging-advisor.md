@@ -137,3 +137,5 @@ Lunar atmospheric suitability is unchanged and still carries `*subject to target
 For the current calendar-hour sample, Moon availability is evaluated at `max(periodStart, forecastUpdatedAt)`, so a rise/set already passed inside the current hour is not presented as still in the future. Availability carries its own displayed timestamp. Future samples use their own start timestamps. Next-crossing advice is clipped to the selected forecast range; absent crossings remain null. There is no independent live clock refresh beyond the app’s normal forecast updates.
 
 Lunar best-observing windows require both the existing nighttime/weather criteria and Moon-up availability; Moon-down and unknown-availability samples break groups and do not enter averages. Their atmospheric weather ratings are retained in the strip with a separate Moon-up/down label. No generic planetary-target requirement is introduced, and no weather values or overall observing-score formula changes.
+
+A next moonrise that falls between local sunrise and sunset is explicitly labeled daylight/outside observing hours. Giving its crossing time does not recommend daytime lunar observing.
