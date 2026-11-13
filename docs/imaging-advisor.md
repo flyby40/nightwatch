@@ -11,7 +11,7 @@ Verified against the existing parser, live GeoMet GetFeatureInfo, and ECCC docum
 
 Both CMC RDPS indices are integers **0–5, higher is better**: 0 = cloudy/zero, 1 = very bad, 2 = poor, 3 = average seeing / medium transparency, 4 = good, 5 = excellent. They are not arcseconds, percentages, or a 1–10 scale. Zero is valid and adverse, not nodata. A live seeing response of 2 was labeled “Poor seeing.” Existing `CMC.parsePoint` requires one feature, a numeric integer in range, and matching valid time and model run; missing/out-of-domain/invalid/error results remain null. The advisor reads the validated `hour.cmc.*.data.value`, not the unused null placeholders `hour.seeing` / `hour.transparency`.
 
-Open-Meteo inputs retain their existing canonical units: cloud and RH percent, wind km/h, temperature and dew point °C. SunCalc supplies Sun/Moon altitudes in degrees and Moon illumination as a 0–1 fraction. All ten inputs (seeing, transparency, clouds, wind, RH, temperature, dew point, Sun altitude, Moon altitude, illumination) must be finite and within accepted ranges. Missing/invalid values return `score: null`, `Insufficient data`, and an explicit list. No missing input is replaced by favorable weather. “Complete” describes input coverage, not calibrated forecast confidence. Incomplete coverage explicitly shows insufficient confidence. This conservative policy also requires transparency for planetary/lunar ratings even though its weight is small.
+Open-Meteo inputs retain their existing canonical units: cloud and RH percent, wind km/h, temperature and dew point °C. SunCalc supplies Sun/Moon altitudes in degrees and Moon illumination as a 0–1 fraction. Every category requires seeing, transparency, clouds, wind, RH, air temperature, dew point and Sun altitude. Deep-sky categories additionally require valid Moon altitude and illumination for sky-background penalties. Planetary/lunar atmospheric ratings do **not** require Moon geometry or a selected-planet position. Missing required weather returns `score: null`, `Insufficient data`, and an explicit list. No weather input is replaced by favorable conditions. “Complete” describes required atmospheric input coverage, not calibrated confidence or target visibility.
 
 ## Matrix foundation and atmospheric weights
 
@@ -43,7 +43,7 @@ This retains useful but reduced suitability outside preferred ranges. For exampl
 
 ### Separate environmental modifiers
 
-`raw = atmospheric × cloud × wind × dew × cmcCloud × night × moon × moonAltitude`. Each factor lies in [0,1], so it can only reduce atmospheric suitability. Parameters below are editable in `config.curves` and the category-specific Moon settings.
+`raw = atmospheric × cloud × wind × dew × cmcCloud × night × moon`. Each factor lies in [0,1], so it can only reduce atmospheric suitability. Parameters below are editable in `config.curves` and the category-specific Moon settings.
 
 Piecewise-linear factor curves interpolate between the following `(input, factor)` points, clamping outside endpoints. This interpolation applies **only to heuristic curves**, not missing values, provider timestamps or grid cells.
 
@@ -59,18 +59,19 @@ Piecewise-linear factor curves interpolate between the following `(input, factor
 - `cmcCloud`: each CMC index contributes `[.1, 1, 1, 1, 1, 1]`. A zero explicitly means modeled cloudy sky and remains adverse even if Open-Meteo reports clear sky. This is not nodata or simply poor turbulence.
 - `night`: within the allowed astronomical-dark subset, deep-sky categories use the Sun-altitude curve and planetary/lunar use 1. The scope restriction below overrides all categories outside darkness; planet visibility is not assessed.
 - `moon`: when the Moon is up, `1 − (1 − moonFloor) × illuminatedFraction`. Floors: wide-field .8, broadband .6, narrowband .95. When the Moon is down, use 1. Planetary/lunar use 1. These do not account for target–Moon separation, filter bandwidth or scattering.
-- `moonAltitude`: lunar only, .8 for Moon altitude >0° and <20°, otherwise 1.
-- Lunar requires Moon altitude >0°. A Moon at/below the horizon is Not observable, with a null display score and explicit visibility explanation. This geometry requirement is distinct from soft weather preferences.
+- Planetary/lunar have no target-altitude penalty or visibility gate: they rate atmospheric conditions, with the note **\*subject to target availability**.
+- A low/below-horizon Moon or absent selected-planet data does not suppress atmospheric recommendations. Availability must be checked separately; specific targets are planned for a future feature.
 
 Round the clamped final 0–100 result for **eligible** samples: Good ≥70, Fair 55–69, Marginal 40–54, Poor <40. Missing weather stays Insufficient data. Before calculating suitability, `dist/observability.js` evaluates eligibility independently:
 
 - Calculated local sunrise/sunset instants define daylight, including the sunrise instant and excluding the sunset instant. Solar events from adjacent dates handle date boundaries; polar periods use calculated Sun altitude (standard −0.833° horizon convention) without invented crossings.
 - Daylight: `eligible: false`, **Not observable**, `score: null`, regardless of target altitude or weather. No daytime planetary observing support is included.
 - Twilight/nighttime: generally eligible; Sun altitude ≤−18° marks preferred astronomical darkness for deep-sky categories. Existing twilight contrast penalties still reduce deep-sky quality; darkness is a preference, not an eligibility cutoff.
-- Lunar: Moon altitude must be known and >0°. Below horizon is Not observable; unknown visibility is Insufficient data.
-- Planetary: selected-planet altitude must be known and >0°. Nightwatch currently has no selected-planet ephemeris, so this card reports visibility unavailable and is excluded from rankings. There is no favorable assumption or synthetic target fallback. Future target-position support can supply `planetAlt` without changing the scoring engine.
+- Planetary and lunar: no specific target or known positive altitude is required. Both cards and the selected category’s timeline show the exact note `*subject to target availability`. These scores describe atmospheric suitability, not a visibility promise. No favorable target position is assumed or fabricated.
+- The separate eligibility module retains an **opt-in** `requireTargetVisibility` option for future target-specific features. It is disabled in the current app; no target selector or ephemeris API is introduced.
 
-Each rating returns an `eligibility` object with `eligible`, `period`, `status`, `preferred`, `label` and `reason`. Daylight and below-horizon targets are categorically different from eligible Poor weather. Eligibility runs before weather availability checks so known daylight is never misreported as merely missing weather. The underlying overall observing formula stays unchanged; its raw result and all daylight weather remain internal. The UI hides the numerical overall score for ineligible hours and labels them Not observable.
+
+Each rating returns an `eligibility` object with `eligible`, `period`, `status`, `preferred`, `label` and `reason`. Daylight ineligibility is categorically different from eligible Poor weather. Eligibility runs before weather availability checks so known daylight is never misreported as merely missing weather. The underlying overall observing formula stays unchanged; its raw result and all daylight weather remain internal. The UI hides the numerical overall score for ineligible hours and labels them Not observable.
 
 ### Required combination regression cases
 
@@ -90,7 +91,7 @@ Production always reads the selected location's actual hourly Open-Meteo forecas
 
 These curves and weights are the proposed first-pass matrix, **not a universal astronomical imaging standard or empirical calibration**. Compare logged forecasts with imaging sessions before changing utilities, atmospheric weights or weather modifiers. `analyze()` returns the atmospheric component utilities, atmosphere score and individual modifiers to make those comparisons inspectable. CMC indices already reflect some cloud/moisture effects, so factors are heuristic and not independent probabilities.
 
-Narrowband's relative tolerance to artificial light is a general property; no light-pollution correction is computed here. Equipment, tracking, planet/target altitude and visibility (except Moon), atmospheric dispersion, filters, local smoke/aerosols and optical-surface temperature are not included. Daytime imaging is outside this advisor’s scope; twilight/nighttime target visibility is checked separately.
+Narrowband's relative tolerance to artificial light is a general property; no light-pollution correction is computed here. Equipment, tracking, planet/target altitude and visibility, atmospheric dispersion, filters, local smoke/aerosols and optical-surface temperature are not included. Daytime imaging is outside this advisor’s scope; twilight/nighttime planetary/lunar recommendations are subject to target availability.
 
 ## Category-specific explanations
 
@@ -98,7 +99,7 @@ Each card shows one concise explanation of its dominant limitation, rather than 
 
 For complete inputs, rank the score recoverable by improving each driver independently: seeing/transparency utilities to 100, or one environmental modifier to 1, holding the others fixed. This is an explanatory comparison, **not a change to any score or weight**. Ties use stable seeing/transparency/modifier order. When the largest recoverable loss is <5 points, atmospheric quality is ≥90 and every modifier is ≥.95, show a category-specific favorable summary instead of declaring a material limitation. Favorable wording is never used for modeled cloud.
 
-The wording describes stars for wide-field, faint-object contrast for broadband, filtered emission signal for narrowband, and fine planetary/lunar detail for high-resolution work. Cloud, wind, dew, Moon background, twilight and low lunar altitude can take precedence when their recoverable score loss is greater. General planet visibility limitations remain visible in the panel's introductory note.
+The wording describes stars for wide-field, faint-object contrast for broadband, filtered emission signal for narrowband, and fine planetary/lunar detail for high-resolution work. Cloud, wind, dew, Moon background, twilight can take precedence when their recoverable score loss is greater. General planet visibility limitations remain visible in the panel's introductory note.
 
 ## Hourly analysis and request behavior
 
@@ -106,11 +107,11 @@ The weather chart retains all 72 periods beginning with the current local hour, 
 
 Analysis shares existing CMC concurrency limits, promises and exact-time/run caching. Stop, location/range cancellation, null handling and current-hour/DST behavior are retained. No new weather or ephemeris API is added. Progress counts nighttime periods, while rankings require per-category eligibility and complete inputs.
 
-The category selector updates an hourly strip and up to three best windows. A window groups **consecutive eligible nighttime/twilight timestamps** with complete data and a Fair/Good rating (≥55). Daylight, below-horizon targets, unknown target visibility, missing weather and adverse samples break groups and never enter their averages. Deep-sky twilight penalties favor astronomical darkness; visible lunar/planetary targets may be ranked during twilight. Candidates are sliced to the selected 24/48/72-hour forecast before grouping/ranking; the heading displays that range. Rank by mean score, then sample count, then earliest timestamp. Start/end are the first/last **sample timestamps**, not guaranteed continuous observing intervals. A single timestamp is a single sample. Clicking a window/sample selects the corresponding original forecast hour; daylight samples remain available only as weather rows with explicit ineligibility labels. Results use the forecast location's timezone. Availability and horizon gaps are visible, not extrapolated. Partially analyzed ranges may change their ranking as additional hours load.
+The category selector updates an hourly strip and up to three best windows. A window groups **consecutive eligible nighttime/twilight timestamps** with complete data and a Fair/Good rating (≥55). Daylight, missing weather and adverse samples break groups and never enter their averages. Deep-sky twilight penalties favor astronomical darkness; planetary/lunar atmospheric conditions may be ranked during twilight without choosing a target. Candidates are sliced to the selected 24/48/72-hour forecast before grouping/ranking; the heading displays that range. Rank by mean score, then sample count, then earliest timestamp. Start/end are the first/last **sample timestamps**, not guaranteed continuous observing intervals. A single timestamp is a single sample. Clicking a window/sample selects the corresponding original forecast hour; daylight samples remain available only as weather rows with explicit ineligibility labels. Results use the forecast location's timezone. Availability and horizon gaps are visible, not extrapolated. Partially analyzed ranges may change their ranking as additional hours load.
 
 ## Validation and screenshots
 
-Run `node --test tests/*.test.cjs` and `node scripts/prepare-pages.cjs`. Tests explicitly cover 1/2, 5/5, 5/1, 1/5 and 3/3, the original matrix ranges/weights, modifiers that cannot improve atmospheric quality, excellent/poor/mixed/missing inputs, CMC 0 vs null and exact time/run validation, lunar visibility, relative moon tolerance, smooth penalties, configurable tables, unchanged observing score, and window gaps.
+Run `node --test tests/*.test.cjs` and `node scripts/prepare-pages.cjs`. Tests explicitly cover 1/2, 5/5, 5/1, 1/5 and 3/3, the original matrix ranges/weights, modifiers that cannot improve atmospheric quality, excellent/poor/mixed/missing inputs, CMC 0 vs null and exact time/run validation, target-independent planetary/lunar advice and exact availability notes, relative moon tolerance, smooth penalties, configurable tables, unchanged observing score, and window gaps.
 
 Screenshots in `docs/screenshots/` use Chicago, Illinois coordinates (41.8781, −87.6298), America/Chicago timezone, and deterministic **test forecasts**, labeled in the screenshot. They illustrate behavior rather than claim current sky conditions. Browser checks cover the selected hour, category changes, hourly analysis, range changes/cancellation, original score consistency, unit switching and mobile width overflow.
 

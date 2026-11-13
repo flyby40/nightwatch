@@ -37,7 +37,7 @@ const fs=require('node:fs');const assert=require('node:assert/strict');
  const oneAM=await page.evaluate(()=>state.hours.findIndex(h=>h.date.toISOString()==='2026-11-10T07:00:00.000Z'));
  await page.locator('#imaging-hours [data-imaging-hour="'+oneAM+'"]').click();
  assert.match(await page.locator('#imaging-inputs').textContent(),/seeing: 1\/5.*Transparency: 2\/5/);
- assert.match(await page.locator('#imaging-cards .imaging-card').nth(3).textContent(),/Insufficient data/);
+ assert.match(await page.locator('#imaging-cards .imaging-card').nth(3).textContent(),/Poor/);
  assert.deepEqual(await page.evaluate(()=>{const h=NightwatchImagingUI.input({seeing:5,transparency:5},0);return [h.seeing,h.transparency]}),[null,null]);
  assert.equal(await page.locator('#score').textContent(),await page.evaluate(()=>String(NightwatchScore.infer(state.hours[selected]))));
  await page.locator('#imaging-category').selectOption('broadband');
@@ -63,12 +63,12 @@ const fs=require('node:fs');const assert=require('node:assert/strict');
   const summary=await page.evaluate(()=>{const hs=state.hours.slice(0,horizon).map(NightwatchImagingUI.input),groups=NightwatchImaging.windows(hs,'planetary');return {valid:groups.every(g=>g.indices.every(i=>i<horizon&&NightwatchImaging.isNight(state.hours[i]))),count:groups.length,links:document.querySelectorAll('#imaging-windows [data-imaging-hour]').length}});
   assert(summary.valid);assert.equal(summary.links,summary.count);
  }
- // Twilight is allowed only with known target visibility; unknown planets never rank.
- await page.locator('#imaging-category').selectOption('planetary');assert.equal(await page.locator('#imaging-windows [data-imaging-hour]').count(),0);
+ // Twilight atmospheric ratings need no target, and both high-resolution categories show the caveat.
+ await page.locator('#imaging-category').selectOption('planetary');assert((await page.locator('#imaging-windows [data-imaging-hour]').count())>0);assert.equal(await page.locator('#imaging-target-note').textContent(),'*subject to target availability');
  const twilight=await page.evaluate(()=>state.hours.slice(0,horizon).findIndex(h=>NightwatchObservability.phase(h)==='twilight'));
  assert(twilight>=0);await page.evaluate(i=>{const h=state.hours[i];h.moonAlt=30;h.planetAlt=40;h.cmc=Object.fromEntries(['seeing','transparency'].map(k=>[k,{data:{value:5,time:h.date.toISOString(),reference:'2026-11-09T18:00:00Z',label:'Explicit twilight target fixture'}}]))},twilight);
  await page.locator('#hours [data-hour="'+twilight+'"]').click();assert.match(await page.locator('.imaging-card').nth(3).textContent(),/Good/);assert.match(await page.locator('.imaging-card').nth(4).textContent(),/Good/);await page.locator('#imaging-panel').screenshot({path:'docs/screenshots/imaging-twilight.png'});
- await page.evaluate(i=>{delete state.hours[i].planetAlt;renderImaging()},twilight);assert.match(await page.locator('.imaging-card').nth(3).textContent(),/visibility is unavailable/);assert.equal(await page.locator('#imaging-windows [data-imaging-hour]').count(),0);
+ await page.evaluate(i=>{delete state.hours[i].planetAlt;renderImaging()},twilight);assert.match(await page.locator('.imaging-card').nth(3).textContent(),/Good/);for(const i of [3,4])assert.equal(await page.locator('.imaging-card').nth(i).locator('.imaging-target-note').textContent(),'*subject to target availability');assert((await page.locator('#imaging-windows [data-imaging-hour]').count())>0);
  // Daytime weather selections cannot show favorable imaging cards or leak into its timeline.
  const day=await page.evaluate(()=>state.hours.slice(0,horizon).findIndex(h=>h.sun>=0));await page.locator('#hours [data-hour="'+day+'"]').click();assert.equal(await page.locator('.imaging-card').count(),0);assert.match(await page.locator('#rating').textContent(),/Not observable/);assert.equal(await page.locator('#score').textContent(),'—');assert.match(await page.locator('#hours [data-hour="'+day+'"] .hour-score').textContent(),/Not observable/);assert.doesNotMatch(await page.locator('#hours [data-hour="'+day+'"] .hour-score').textContent(),/\/100/);assert.match(await page.locator('#imaging-inputs').textContent(),/Not observable in daylight/);await assertDarkTimeline(24);await page.locator('.hero').screenshot({path:'docs/screenshots/observing-daylight.png'});
  // A location change during analysis must not retain the old run or its selected data.
