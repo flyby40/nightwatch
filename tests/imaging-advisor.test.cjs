@@ -26,7 +26,7 @@ test('missing, invalid and fractional indices stay insufficient; valid zero is p
 test('penalties vary smoothly and respond to wind, humidity and dew spread; daylight limits deep sky',()=>{
  for(const field of ['cloud','wind','humidity']){const base=results({[field]:50}),worse=results({[field]:51});assert(worse.wide.score<=base.wide.score);}
  assert(results({temp:15,dew:14}).wide.score<results({temp:15,dew:0}).wide.score);
- assert.equal(results({sun:20}).broadband.rating,'Poor');assert.equal(results({sun:20}).planetary.score,results({sun:-25}).planetary.score);
+ assert.equal(results({sun:20}).broadband.rating,'Poor');assert.equal(results({sun:20}).planetary.score,0);
  assert.equal(A.curve([[0,0],[10,100]],5),50);
 });
 test('configurable tables do not mutate inputs or change the original observing score',()=>{
@@ -96,7 +96,7 @@ test('environmental explanations reflect the greatest recoverable score loss',()
   [{cloud:90},'cloud',/Cloud cover/],
   [{wind:55},'wind',/Wind/],
   [{humidity:100,dew:15},'dew',/Dew\/frost/],
-  [{sun:10},'night',/Twilight or daylight/],
+  [{sun:10},'daylight',/Daylight/],
   [{moonIllum:1},'moon',/Moonlight/]
  ]){const r=results(over).broadband;assert.equal(r.dominantLimitation,driver);assert.match(r.explanation,text);}
  assert.equal(results({seeing:0,transparency:0,cloud:100}).planetary.dominantLimitation,'cmcCloud');
@@ -120,4 +120,11 @@ test('favorable windows follow the supplied 24/48/72-hour forecast and do not ca
   const wins=A.windows(hours.slice(0,horizon),id);
   assert.deepEqual(wins.flatMap(w=>w.indices),[5,29,53].filter(i=>i<horizon));
  }
+});
+
+test('daylight and twilight can never receive favorable imaging ratings, even for planetary and lunar',()=>{
+ for(const sun of [-18,-12,-.1,0,20,89])for(const r of Object.values(results({sun}))){assert.equal(r.score,0);assert.equal(r.rating,'Poor');assert.match(r.explanation,/outside/);}
+ assert(Object.values(results({sun:-18.01})).every(r=>r.rating==='Good'));
+ assert.equal(results({sun:20,seeing:null}).planetary.score,null);
+ assert.equal(A.isDark({sun:null}),false);assert.equal(A.isDark({sun:NaN}),false);assert.equal(A.isDark({sun:-18}),false);
 });

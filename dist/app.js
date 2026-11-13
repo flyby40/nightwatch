@@ -43,7 +43,7 @@ async function loadCMC(s,h){
 function renderImaging(){if(state)NightwatchImagingUI.render(state,horizon,selected,fmt,i=>{selected=i;if(nightOnly&&state.hours[i].sun>=-18){nightOnly=false;$('all').classList.add('active');$('night').classList.remove('active');}renderHours()})}
 $('imaging-analyze').onclick=async()=>{
  if(!state)return;const s=state,range=horizon,run=++imagingRun;s.imagingRunning=true;renderImaging();
- try{for(const h of s.hours.slice(0,range)){if(run!==imagingRun||state!==s||horizon!==range)break;await loadCMC(s,h);}}
+ try{for(const h of s.hours.slice(0,range).filter(NightwatchImaging.isDark)){if(run!==imagingRun||state!==s||horizon!==range)break;await loadCMC(s,h);}}
  finally{if(run===imagingRun){s.imagingRunning=false;if(state===s)renderImaging();}}
 };
 $('imaging-cancel').onclick=()=>{imagingRun++;if(state){state.imagingRunning=false;renderImaging();}};

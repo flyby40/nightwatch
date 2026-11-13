@@ -13,18 +13,22 @@ const fs=require('node:fs');const assert=require('node:assert/strict');
   const lat=Number(new URL(route.request().url()).searchParams.get('latitude'));
   return route.fulfill({json:{timezone:lat===41.8781?'America/Chicago':'America/Phoenix',hourly}});
  });
- await page.route('**/cmc.js',route=>route.fulfill({contentType:'text/javascript',body:fs.readFileSync('dist/cmc.js','utf8')+`\nCMC.point=async(field,lat,lon,date)=>{await new Promise(r=>setTimeout(r,40));const n=date.getUTCHours()%6;if(n===5)return {data:null,reason:'Synthetic fixture: no CMC data'};return {data:{value:date.toISOString()==='2026-11-10T07:00:00.000Z'?(field==='seeing'?1:2):(field==='seeing'?(n===3?1:5):(n===4?2:5)),label:'Synthetic test index',time:date.toISOString(),reference:'2026-11-09T18:00:00Z',coordinates:[lon,lat]}};};`}));
+ await page.route('**/cmc.js',route=>route.fulfill({contentType:'text/javascript',body:fs.readFileSync('dist/cmc.js','utf8')+`\nCMC.point=async(field,lat,lon,date)=>{await new Promise(r=>setTimeout(r,40));(window.testCMCRequests??=[]).push(date.toISOString());const n=date.getUTCHours()%6;if(n===5)return {data:null,reason:'Synthetic fixture: no CMC data'};return {data:{value:date.toISOString()==='2026-11-10T07:00:00.000Z'?(field==='seeing'?1:2):(field==='seeing'?(n===3?1:5):(n===4?2:5)),label:'Synthetic test index',time:date.toISOString(),reference:'2026-11-09T18:00:00Z',coordinates:[lon,lat]}};};`}));
  await page.route('https://geo.weather.gc.ca/**',route=>route.abort());
  await page.route('https://nightwatch-sky-api.**/**',route=>route.abort());
- await page.goto('http://127.0.0.1:4173');await page.waitForSelector('.imaging-card');
+ await page.goto('http://127.0.0.1:4173');await page.waitForSelector('#hours .hour');
+ async function assertDarkTimeline(range){const expected=await page.evaluate(n=>state.hours.slice(0,n).flatMap((h,i)=>NightwatchImaging.isDark(h)?[i]:[]),range);assert.deepEqual(await page.locator('#imaging-hours .imaging-sample').evaluateAll(es=>es.map(e=>Number(e.dataset.imagingHour))),expected);assert.equal(await page.locator('#hours .hour').count(),range);return expected;}
+ const dark24=await assertDarkTimeline(24);await page.locator('#imaging-hours .imaging-sample').first().click();
  await page.waitForFunction(()=>document.querySelector('#seeing').textContent!=='null');
  assert.match(await page.locator('#place').textContent(),/Chicago, Illinois/);
  assert.match(await page.locator('#imaging-time').textContent(),/America\/Chicago/);
  assert.deepEqual(await page.evaluate(()=>[state.lat,state.lon]),[41.8781,-87.6298]);
  const original=await page.locator('#score').textContent();
+ await page.evaluate(()=>window.testCMCRequests=[]);
  await page.locator('#imaging-analyze').click();await page.waitForFunction(()=>!document.querySelector('#imaging-analyze').disabled);
- assert.match(await page.locator('#imaging-progress').textContent(),/24\/24 hours checked/);
- assert.equal(await page.locator('.imaging-sample').count(),24);
+ assert((await page.locator('#imaging-progress').textContent()).includes(dark24.length+'/'+dark24.length+' dark hours checked in the next 24 hours'));
+ assert(await page.evaluate(()=>window.testCMCRequests.every(t=>state.hours.find(h=>h.date.toISOString()===t)?.sun<-18)));
+ await assertDarkTimeline(24);
  assert(await page.locator('.imaging-sample.imaging-unavailable').count()>0);
  assert.equal(await page.locator('#score').textContent(),original);
  await page.locator('#imaging-category').selectOption('planetary');assert.match(await page.locator('#imaging-window-title').textContent(),/planetary/);
@@ -47,10 +51,10 @@ const fs=require('node:fs');const assert=require('node:assert/strict');
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`page overflow at ${width}`);
   if(width===390)await page.locator('#imaging-panel').screenshot({path:'docs/screenshots/imaging-iphone.png'});
  }
- await page.locator('[data-range="48"]').click();assert.equal(await page.locator('.imaging-sample').count(),48);
+ await page.locator('[data-range="48"]').click();await assertDarkTimeline(48);
  await page.locator('#imaging-analyze').click();await page.locator('#imaging-cancel').click();assert.equal(await page.locator('#imaging-analyze').isDisabled(),false);
- await page.locator('#imaging-analyze').click();await page.locator('[data-range="72"]').click();assert.equal(await page.locator('#imaging-analyze').isDisabled(),false);assert.equal(await page.locator('.imaging-sample').count(),72);
- await page.locator('#imaging-analyze').click();await page.waitForFunction(()=>!document.querySelector('#imaging-analyze').disabled);assert.match(await page.locator('#imaging-progress').textContent(),/72\/72 hours checked/);
+ await page.locator('#imaging-analyze').click();await page.locator('[data-range="72"]').click();assert.equal(await page.locator('#imaging-analyze').isDisabled(),false);await assertDarkTimeline(72);
+ await page.locator('#imaging-analyze').click();await page.waitForFunction(()=>!document.querySelector('#imaging-analyze').disabled);const dark72=await assertDarkTimeline(72);assert((await page.locator('#imaging-progress').textContent()).includes(dark72.length+'/'+dark72.length+' dark hours checked in the next 72 hours'));
  // Verify displayed windows follow dark hours and the selected forecast scope in both directions.
  await page.locator('#imaging-category').selectOption('planetary');
  for(const range of [24,48,72,24]){
@@ -59,8 +63,12 @@ const fs=require('node:fs');const assert=require('node:assert/strict');
   const summary=await page.evaluate(()=>{const hs=state.hours.slice(0,horizon).map(NightwatchImagingUI.input),groups=NightwatchImaging.windows(hs,'planetary');return {valid:groups.every(g=>g.indices.every(i=>i<horizon&&state.hours[i].sun<-18)),count:groups.length,links:document.querySelectorAll('#imaging-windows [data-imaging-hour]').length}});
   assert(summary.valid);assert.equal(summary.links,summary.count);
  }
+ // Daytime weather selections cannot show favorable imaging cards or leak into its timeline.
+ const day=await page.evaluate(()=>state.hours.slice(0,horizon).findIndex(h=>h.sun>=0));await page.locator('#hours [data-hour="'+day+'"]').click();assert.equal(await page.locator('.imaging-card').count(),0);assert.match(await page.locator('#imaging-inputs').textContent(),/outside astronomical darkness/);await assertDarkTimeline(24);
  // A location change during analysis must not retain the old run or its selected data.
  await page.evaluate(()=>{state.hours.forEach(h=>delete h.cmc)});await page.locator('#imaging-analyze').click();await page.evaluate(()=>load(35.1983,-111.6513,'Flagstaff · location-change test'));
  await page.waitForFunction(()=>document.querySelector('#place').textContent==='Flagstaff · location-change test');assert.equal(await page.locator('#imaging-analyze').isDisabled(),false);
+ // Explicit no-dark-hours fixture (e.g. a polar-day forecast): empty advisor, weather retained.
+ await page.evaluate(()=>{state.hours.forEach(h=>h.sun=10);selected=0;render()});assert.equal(await page.locator('.imaging-card').count(),0);assert.equal(await page.locator('.imaging-sample').count(),0);assert(await page.locator('#imaging-analyze').isDisabled());assert.match(await page.locator('#imaging-inputs').textContent(),/No astronomical-dark hours/);assert.equal(await page.locator('#hours .hour').count(),24);
  assert.deepEqual(errors,[]);await browser.close();console.log('Chicago, Illinois browser checks passed: all categories, missing CMC, 24/48/72h, stop, location change, units, unchanged score, desktop and 320/390/430px layouts.');
 })().catch(e=>{console.error(e);process.exit(1)});

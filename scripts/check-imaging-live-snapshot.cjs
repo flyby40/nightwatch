@@ -18,7 +18,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict');const {chromium
    return r.abort();
   });
   await page.route('https://nightwatch-sky-api.**/**',r=>r.abort());
-  await page.goto('http://127.0.0.1:4173');await page.waitForSelector('.imaging-card');
+  await page.goto('http://127.0.0.1:4173');await page.waitForSelector('#hours .hour');
   const index=await page.evaluate(t=>state.hours.findIndex(h=>+h.date===Date.parse(t)),snapshot.selectedTime);assert(index>=0);
   await page.locator('#imaging-hours [data-imaging-hour="'+index+'"]').click();
   await page.waitForFunction(()=>!!state.hours[selected].cmc);

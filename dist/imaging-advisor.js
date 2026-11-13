@@ -23,6 +23,7 @@ const config={
  cmcCloudFactor:[.1,1,1,1,1,1],lowMoonAltitude:20,lowMoonFactor:.8
 };
 const valid=v=>typeof v==='number'&&Number.isFinite(v);
+const isDark=h=>!!h&&valid(h.sun)&&h.sun<-18;
 function curve(points,x){if(x<=points[0][0])return points[0][1];for(let i=1;i<points.length;i++){const [a,b]=points[i-1],[c,d]=points[i];if(x<=c)return b+(d-b)*(x-a)/(c-a)}return points.at(-1)[1]}
 function band(score,c=config){return !valid(score)?'unavailable':score>=c.bands.good?'good':score>=c.bands.fair?'fair':score>=c.bands.marginal?'marginal':'poor'}
 const labels={good:'Good',fair:'Fair',marginal:'Marginal',poor:'Poor',unavailable:'Insufficient data'};
@@ -64,7 +65,8 @@ function analyze(h={},c=config){
   const modifiers={cloud:curve(c.curves.cloud,h.cloud),wind:curve(c.curves.wind,h.wind),dew:Math.min(curve(c.curves.humidity,h.humidity),curve(c.curves.spread,h.temp-h.dew)),cmcCloud:c.cmcCloudFactor[h.seeing]*c.cmcCloudFactor[h.transparency],night:spec.detail?1:curve(c.curves.night,h.sun),moon:spec.moonFloor===undefined||h.moonAlt<=0?1:1-(1-spec.moonFloor)*h.moonIllum,moonAltitude:spec.moonRequired&&h.moonAlt>0&&h.moonAlt<c.lowMoonAltitude?c.lowMoonFactor:1};
   let raw=atmospheric*Object.values(modifiers).reduce((a,b)=>a*b,1);
   if(spec.moonRequired&&h.moonAlt<=0)raw=0;
-  const reason=explain(id,h,spec,components,atmospheric,modifiers);
+  let reason=explain(id,h,spec,components,atmospheric,modifiers);
+  if(!isDark(h)){raw=0;reason={dominantLimitation:h.sun>=0?'daylight':'twilight',explanation:h.sun>=0?'Daylight is outside this dark-hours imaging advisor; daytime suitability is Poor.':'Twilight is outside this advisor; choose astronomical darkness (Sun below −18°).'};}
   const score=Math.round(Math.max(0,Math.min(100,raw))),quality=band(score,c);
   return {...base,score,band:quality,rating:labels[quality],...reason,components,atmospheric,modifiers};
  });
@@ -72,11 +74,11 @@ function analyze(h={},c=config){
 // Windows contain consecutive forecast samples, not guaranteed continuous conditions.
 function windows(hours,id,c=config){
  const groups=[];let group=null;
- for(const h of hours){const r=analyze(h,c).find(r=>r.id===id),t=+h.date;if(!valid(t)||!valid(h.sun)||h.sun>=-18||r.score===null||r.score<c.bands.fair){group=null;continue;}
+ for(const h of hours){const r=analyze(h,c).find(r=>r.id===id),t=+h.date;if(!valid(t)||!isDark(h)||r.score===null||r.score<c.bands.fair){group=null;continue;}
   if(!group||t-group.end!==3600000){group={start:t,end:t,scores:[],indices:[]};groups.push(group)}
   group.end=t;group.scores.push(r.score);group.indices.push(h.index);
  }
  return groups.map(g=>({...g,average:Math.round(g.scores.reduce((a,b)=>a+b,0)/g.scores.length)})).sort((a,b)=>b.average-a.average||b.scores.length-a.scores.length||a.start-b.start).slice(0,3);
 }
-root.NightwatchImaging={config,analyze,windows,curve,band};
+root.NightwatchImaging={config,analyze,windows,curve,band,isDark};
 })(typeof window!=='undefined'?window:globalThis);
