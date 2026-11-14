@@ -1,0 +1,97 @@
+/* Observatory: navy instruments, teal controls, ivory type, restrained gold.
+   Status colors remain in style.css and retain their existing meaning. */
+:root {
+  --bg: #091523;
+  --panel: #112335;
+  --line: #2a4053;
+  --text: #eff3f6;
+  --muted: #adbdcd;
+  --accent: #73d5c4;
+  --gold: #c6ae72;
+  --control: #162d40;
+  --green: var(--accent); /* Existing controls and links share this token. */
+}
+body {background: radial-gradient(ellipse 1000px 650px at 100% 0, #183e4b 0%, transparent 75%), var(--bg);}
+header {height:108px;background:#09152399;gap:24px;}
+header .brand {display:flex;align-items:center;gap:12px;letter-spacing:0;flex-shrink:0;}
+header .brand > .brand-symbol {color:var(--text);font-size:32px;margin:0;}
+.brand-copy {display:flex;flex-direction:column;gap:8px;}
+.brand-name {font-size:21px;letter-spacing:4px;font-weight:700;}
+.brand-tagline {font-family:'DM Sans',sans-serif;font-size:10px;letter-spacing:1.7px;font-weight:400;color:var(--muted);}
+.header-caption {font-size:12px;}
+.header-right button {margin-left:8px;color:var(--text);}
+.eyebrow {color:var(--muted);letter-spacing:1.6px;}
+.intro {padding-top:46px;}
+.intro > .eyebrow {color:var(--accent);}
+h1 {font-size:44px;letter-spacing:-1.5px;line-height:1.2;}
+.intro > h1 {border-left:2px solid var(--gold);padding-left:20px;margin-top:18px;}
+.intro > p {line-height:1.7;}
+.location-bar, #units, .map-controls select, .imaging-category select, .planet-controls select {background:var(--control);border-color:var(--line);}
+.location-bar input::placeholder {color:var(--muted);}
+#place {color:var(--text);}
+#results {background:#183247;border:1px solid var(--line);}
+#results:empty {border:0;}
+#results button:hover {background:var(--control);}
+.hero {min-height:240px;display:grid;grid-template-columns:minmax(0,1fr) 200px;align-items:center;gap:32px;background:linear-gradient(110deg,#132e40,#112335);border-color:var(--line);padding:30px 32px;}
+.hero-copy {max-width:none;}
+.hero h2 {font-size:32px;letter-spacing:-.8px;margin-top:14px;}
+.hero p {color:var(--muted);max-width:650px;}
+.hero-pills {max-width:none;margin-top:20px;}
+.hero-pills span {color:var(--text);background:#73d5c40a;border-color:#73d5c433;line-height:1.6;}
+.score {position:static;max-width:none;text-align:right;}
+.score > span,.score small {color:var(--muted);}
+.score strong {font-size:44px;}
+.score > span:last-child {color:var(--text);}
+.metrics article,.panel {border-radius:12px;}
+.metrics .metric-icon {color:var(--accent);}
+.metrics p {font-size:11px;line-height:1.7;}
+.controls {background:#ffffff04;}
+.controls button.active {background:var(--accent);color:var(--bg);}
+.hour:not([class*=viewing-]) {border-color:var(--line);}
+.detail,.dew-panel p,.highlights p,.field p,.imaging-card p {color:var(--muted);}
+.map-actions button,.satellite-controls button,#sky-readings-form button,#planet-height-form button {background:var(--control);color:var(--text);border-color:var(--line);}
+.cloud-map-wrap {border-color:var(--line);}
+#cloud-map {background:#142d41;}
+#cloud-map .leaflet-control-attribution {background:#091523ed;color:var(--muted);}
+#cloud-map .leaflet-control-attribution a {color:var(--accent);}
+#cloud-map .leaflet-control-zoom a {background:var(--panel);color:var(--text);border-color:var(--line);}
+#cloud-map .leaflet-control-scale-line {background:#091523dd;color:var(--text);border-color:var(--text);}
+#cloud-map .leaflet-tooltip {background:var(--panel);color:var(--text);border-color:var(--accent);}
+.map-time {background:var(--control);color:var(--text);}
+.map-status,.aurora-legend {color:var(--muted);}
+.field {background:linear-gradient(130deg,#153344,#112335);}
+.field .eyebrow,.field-icon {color:var(--gold);}
+.field button,.event > span,.event time {color:var(--accent);}
+.bortle-scale span {background:#20384c;color:var(--text);}
+.bortle-scale span:nth-child(n+4) {background:#35495b;}
+.bortle-scale span:nth-child(n+7) {background:#536175;}
+footer,footer .brand {color:var(--muted);}
+footer .footer-brand {font-size:16px;letter-spacing:2px;}
+footer a {color:var(--accent);}
+dialog {background:var(--panel);border-color:var(--line);}
+dialog p {color:var(--muted);}
+@media(max-width:1000px) {.header-caption {display:none;}}
+@media(max-width:800px) {
+  header {height:auto;min-height:90px;flex-wrap:wrap;padding:18px 24px;gap:16px;}
+  .header-right {margin-left:auto;}
+  h1 {font-size:38px;}
+  .hero {grid-template-columns:minmax(0,1fr) 160px;gap:20px;padding:26px 24px;}
+  .hero h2 {font-size:29px;}
+  .score strong {font-size:38px;}
+}
+@media(max-width:600px) {
+  header {padding:18px max(16px,env(safe-area-inset-right)) 18px max(16px,env(safe-area-inset-left));}
+  .brand-name {font-size:19px;letter-spacing:3px;}
+  .brand-tagline {font-size:9px;letter-spacing:1.4px;}
+  .header-right {width:100%;justify-content:flex-end;gap:8px;}
+  .header-right button {margin:0;}
+  #units {flex:1;max-width:220px;}
+  .intro {padding-top:30px;}
+  h1 {font-size:clamp(30px,8vw,38px);letter-spacing:-1px;}
+  .intro > h1 {padding-left:14px;}
+  .hero {grid-template-columns:minmax(0,1fr);gap:18px;padding:24px;min-height:0;}
+  .hero h2 {font-size:28px;}
+  .score {text-align:left;padding-top:16px;border-top:1px solid var(--line);}
+  .hero-pills {max-width:100%;}
+  .score strong {font-size:40px;}
+}
